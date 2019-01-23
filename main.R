@@ -654,3 +654,6 @@ pp_mot_freqs[["mod_pp_freq2"]] <- select_freq(mod_on_subtlex_us, "freq_q2",
 pp_mot_freqs[["mod_pp_freq3"]] <- select_freq(mod_on_subtlex_us, "freq_q3",
                                               freq_pp_mot_qus, var = "ph_pr", value = FALSE) %>%
   quartiles_pp_sets()
+
+# Frequency at each length, for each PP tertile (in Rmd file)
+  

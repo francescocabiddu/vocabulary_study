@@ -10,7 +10,8 @@ toc-title: 'Vocabulary paper results (v4)'
 <!-- loading packages, user-defined functions and datasets -->
 ```{r echo=FALSE, warning=FALSE, message=FALSE, cache=FALSE, include=FALSE}
 lib <- c("tidyverse","knitr","gridExtra",
-         "car","kableExtra", "magick", "grid")
+         "car","kableExtra", "magick", "grid",
+         "magrittr")
 lapply(lib, require, character.only = TRUE)
 load(file="ws5.RData")
 
@@ -50,6 +51,278 @@ grid_arrange_shared_legend <- function(..., nrow = 1,y_title, x_size, y_size,wid
                                            bottom=textGrob(x_title, gp=gpar(fontsize=x_size), vjust = 0, hjust = hjust1)))
   grid.newpage()
   grid.draw(combined)
+
+}
+
+freq_len_pp_fun <- function(df, pp_qu, le, general, freq_df, qus) {
+  df_output <- df %>%
+    (function(x) {
+      tibble(phon = unlist(x$phon),
+             ph_pr = unlist(x$ph_pr))
+    })
+  
+  if (pp_qu == 1) {
+    df_output %<>%
+      filter(ph_pr < pp_qu_subtlex_us[2])  # PP qu
+  } else if (pp_qu == 2) {
+    df_output %<>%
+      filter(ph_pr >= pp_qu_subtlex_us[2] & ph_pr < pp_qu_subtlex_us[3]) # PP qu
+  } else {
+    df_output %<>%
+      filter(ph_pr >= pp_qu_subtlex_us[3]) # PP qu
+  }
+    df_output %<>%
+      mutate(len = str_split(phon, "_") %>%
+               sapply(length)) %>%
+      filter(len == le) %>% # LEN
+      mutate(UnTrn = phon)
+    
+    if (general == TRUE) {
+      df_output %<>%
+        mutate(UnTrn = UnTrn %>%
+                 str_replace_all("_", ".") %>%
+                 str_replace_all("UU", "AH"))
+    }
+    
+    df_output %>%
+      left_join(freq_df, "UnTrn") %>%
+      mutate(freq_qu = ifelse(SFreq < qus[2], 1,
+                              ifelse(SFreq >= qus[2] & SFreq < qus[3], 2,
+                                     ifelse(SFreq >= qus[3], 3, NA)))) %>%
+      na.omit() %>%
+      group_by(freq_qu) %>%
+      summarise(n = n()) %>%
+      ungroup() %>%
+      mutate(perc = (n / sum(n)) * 100) %>%
+      select(-n) %>%
+      mutate(len = le,
+             pp_t = pp_qu) 
+}
+
+freq_len_pp_plot <- function(df, df_label, gen_par, df_freq, freq_qu_par, freq_label) {
+  freq_len_pp_fun(df, pp_qu = 1, le = 2, 
+                  general = gen_par, freq_df = df_freq,
+                  qus = freq_qu_par) %>%
+    rbind(freq_len_pp_fun(df, pp_qu = 1, le = 3, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    rbind(freq_len_pp_fun(df, pp_qu = 1, le = 4, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    rbind(freq_len_pp_fun(df, pp_qu = 1, le = 5, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    rbind(freq_len_pp_fun(df, pp_qu = 1, le = 6, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    rbind(freq_len_pp_fun(df, pp_qu = 2, le = 2, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    rbind(freq_len_pp_fun(df, pp_qu = 2, le = 3, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    rbind(freq_len_pp_fun(df, pp_qu = 2, le = 4, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    rbind(freq_len_pp_fun(df, pp_qu = 2, le = 5, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    rbind(freq_len_pp_fun(df, pp_qu = 2, le = 6, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    rbind(freq_len_pp_fun(df, pp_qu = 3, le = 2, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    rbind(freq_len_pp_fun(df, pp_qu = 3, le = 3, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    rbind(freq_len_pp_fun(df, pp_qu = 3, le = 4, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    rbind(freq_len_pp_fun(df, pp_qu = 3, le = 5, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    rbind(freq_len_pp_fun(df, pp_qu = 3, le = 6, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    mutate(len = as.factor(len),
+           freq_qu = ifelse(freq_qu == 1, "T1",
+                            ifelse(freq_qu == 2, "T2", "T3")) %>%
+             as.factor(),
+           pp_t = ifelse(pp_t == 1, "PP T1",
+                         ifelse(pp_t == 2, "PP T2", "PP T3")) %>%
+             as.factor()) %>%
+    rename(`Phonemic length` = len,
+           `Novel words (%)` = perc,
+           !!freq_label := freq_qu) %>%
+    (function(x) {
+      if (freq_label == "Frequency") {
+        ggplot(x, aes(`Phonemic length`, `Novel words (%)`)) + 
+          geom_bar(aes(fill = `Frequency`), stat = "identity", position = "dodge")+
+          scale_y_continuous(limits=c(0, 100), breaks=seq(0, 100, by = 25))+
+          scale_fill_grey()+
+          theme(axis.text=element_text(size=20),
+                axis.title=element_text(size=20),
+                legend.text = element_text(size=20),
+                legend.title = element_text(size = 20),
+                legend.key.size = unit(1,"cm"),
+                strip.text = element_text(size=20)) +
+          ggtitle(df_label) +
+          theme(plot.title = element_text(hjust = 0.5, size = 25)) +
+          facet_grid(rows = vars(pp_t))
+      } else {
+        ggplot(x, aes(`Phonemic length`, `Novel words (%)`)) + 
+          geom_bar(aes(fill = `Mot Frequency`), stat = "identity", position = "dodge")+
+          scale_y_continuous(limits=c(0, 100), breaks=seq(0, 100, by = 25))+
+          scale_fill_grey()+
+          theme(axis.text=element_text(size=20),
+                axis.title=element_text(size=20),
+                legend.text = element_text(size=20),
+                legend.title = element_text(size = 20),
+                legend.key.size = unit(1,"cm"),
+                strip.text = element_text(size=20)) +
+          ggtitle(df_label) +
+          theme(plot.title = element_text(hjust = 0.5, size = 25)) +
+          facet_grid(rows = vars(pp_t))
+      }
+    })
+}
+
+
+
+# frequency at each length, for each ND tertile
+freq_len_nd_fun <- function(df, nd_qu, le, general, freq_df, qus) {
+  df_output <- df %>%
+    (function(x) {
+      tibble(phon = unlist(x$phon),
+             nei = unlist(x$nei))
+    })
+  
+  if (nd_qu == 1) {
+    df_output %<>%
+      filter(nei < nei_qu[2])  # ND qu
+  } else if (nd_qu == 2) {
+    df_output %<>%
+      filter(nei >= nei_qu[2] & nei < nei_qu[3]) # ND qu
+  } else {
+    df_output %<>%
+      filter(nei >= nei_qu[3]) # ND qu
+  }
+  df_output %<>%
+    mutate(len = str_split(phon, "_") %>%
+             sapply(length)) %>%
+    filter(len == le) %>% # LEN
+    mutate(UnTrn = phon)
+  
+  if (general == TRUE) {
+    df_output %<>%
+      mutate(UnTrn = UnTrn %>%
+               str_replace_all("_", ".") %>%
+               str_replace_all("UU", "AH"))
+  }
+  
+  df_output %>%
+    left_join(freq_df, "UnTrn") %>%
+    mutate(freq_qu = ifelse(SFreq < qus[2], 1,
+                            ifelse(SFreq >= qus[2] & SFreq < qus[3], 2,
+                                   ifelse(SFreq >= qus[3], 3, NA)))) %>%
+    na.omit() %>%
+    group_by(freq_qu) %>%
+    summarise(n = n()) %>%
+    ungroup() %>%
+    mutate(perc = (n / sum(n)) * 100) %>%
+    select(-n) %>%
+    mutate(len = le,
+           nd_t = nd_qu) 
+}
+
+freq_len_nd_plot <- function(df, df_label, gen_par, df_freq, freq_qu_par, freq_label) {
+  freq_len_nd_fun(df, nd_qu = 1, le = 2, 
+                  general = gen_par, freq_df = df_freq,
+                  qus = freq_qu_par) %>%
+    rbind(freq_len_nd_fun(df, nd_qu = 1, le = 3, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    rbind(freq_len_nd_fun(df, nd_qu = 1, le = 4, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    rbind(freq_len_nd_fun(df, nd_qu = 1, le = 5, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    rbind(freq_len_nd_fun(df, nd_qu = 1, le = 6, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    rbind(freq_len_nd_fun(df, nd_qu = 2, le = 2, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    rbind(freq_len_nd_fun(df, nd_qu = 2, le = 3, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    rbind(freq_len_nd_fun(df, nd_qu = 2, le = 4, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    rbind(freq_len_nd_fun(df, nd_qu = 2, le = 5, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    rbind(freq_len_nd_fun(df, nd_qu = 2, le = 6, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    rbind(freq_len_nd_fun(df, nd_qu = 3, le = 2, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    rbind(freq_len_nd_fun(df, nd_qu = 3, le = 3, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    rbind(freq_len_nd_fun(df, nd_qu = 3, le = 4, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    rbind(freq_len_nd_fun(df, nd_qu = 3, le = 5, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    rbind(freq_len_nd_fun(df, nd_qu = 3, le = 6, 
+                          general = gen_par, freq_df = df_freq,
+                          qus = freq_qu_par)) %>%
+    mutate(len = as.factor(len),
+           freq_qu = ifelse(freq_qu == 1, "T1",
+                            ifelse(freq_qu == 2, "T2", "T3")) %>%
+             as.factor(),
+           nd_t = ifelse(nd_t == 1, "ND T1",
+                         ifelse(nd_t == 2, "ND T2", "ND T3")) %>%
+             as.factor()) %>%
+    rename(`Phonemic length` = len,
+           `Novel words (%)` = perc,
+           !!freq_label := freq_qu) %>%
+    (function(x) {
+      if (freq_label == "Frequency") {
+        ggplot(x, aes(`Phonemic length`, `Novel words (%)`)) + 
+          geom_bar(aes(fill = `Frequency`), stat = "identity", position = "dodge")+
+          scale_y_continuous(limits=c(0, 100), breaks=seq(0, 100, by = 25))+
+          scale_fill_grey()+
+          theme(axis.text=element_text(size=20),
+                axis.title=element_text(size=20),
+                legend.text = element_text(size=20),
+                legend.title = element_text(size = 20),
+                legend.key.size = unit(1,"cm"),
+                strip.text = element_text(size=20)) +
+          ggtitle(df_label) +
+          theme(plot.title = element_text(hjust = 0.5, size = 25)) +
+          facet_grid(rows = vars(nd_t))
+      } else {
+        ggplot(x, aes(`Phonemic length`, `Novel words (%)`)) + 
+          geom_bar(aes(fill = `Mot Frequency`), stat = "identity", position = "dodge")+
+          scale_y_continuous(limits=c(0, 100), breaks=seq(0, 100, by = 25))+
+          scale_fill_grey()+
+          theme(axis.text=element_text(size=20),
+                axis.title=element_text(size=20),
+                legend.text = element_text(size=20),
+                legend.title = element_text(size = 20),
+                legend.key.size = unit(1,"cm"),
+                strip.text = element_text(size=20)) +
+          ggtitle(df_label) +
+          theme(plot.title = element_text(hjust = 0.5, size = 25)) +
+          facet_grid(rows = vars(nd_t))
+      }
+    })
 
 }
 
@@ -1170,6 +1443,46 @@ freq_at_length_plot(table, "Model")
 
 <br> 
 
+### General frequency at each phonemic length (for each different PP tertile)
+
+```{r freq_len_pp_chi, echo = FALSE, results='asis', fig.width=14, fig.height=9}
+freq_len_pp_plot(chi_uni_on_subtlex_us, "Children",
+                 gen_par = TRUE, df_freq = iphod_freq,
+                 freq_qu_par = freq_qus,
+                 freq_label = "Frequency")
+```
+
+<br>
+
+```{r freq_len_pp_mod, echo = FALSE, results='asis', fig.width=14, fig.height=9}
+freq_len_pp_plot(mod_on_subtlex_us, "Model",
+                 gen_par = TRUE, df_freq = iphod_freq,
+                 freq_qu_par = freq_qus,
+                 freq_label = "Frequency")
+```
+
+<br>
+
+### General frequency at each phonemic length (for each different ND tertile)
+
+```{r freq_len_nd_chi, echo = FALSE, results='asis', fig.width=14, fig.height=9}
+freq_len_nd_plot(chi_nei_on, "Children",
+                 gen_par = TRUE, df_freq = iphod_freq,
+                 freq_qu_par = freq_qus,
+                 freq_label = "Frequency")
+```
+
+<br>
+
+```{r freq_len_nd_mod, echo = FALSE, results='asis', fig.width=14, fig.height=9}
+freq_len_nd_plot(mod_nei_on, "Model",
+                 gen_par = TRUE, df_freq = iphod_freq,
+                 freq_qu_par = freq_qus,
+                 freq_label = "Frequency")
+```
+
+<br>
+
 ## Maternal Frequency
 
 Frequency based on Mothers' corpus. Children's words that are not present in the maternal speech have no frequency value and therefore were excluded. Therefore, words' frequency always starts from 1.
@@ -1299,4 +1612,44 @@ freq_at_length_mot_plot(table, "Model")
 **Figure .** MODEL breakdown with tertiles computed for 2-6 phonemes across all mother and child words, this time computing tertiles individually for each phonemic length
 
 <br> 
+
+### Maternal frequency at each phonemic length (for each different PP tertile)
+
+```{r freq_mot_len_pp_chi, echo = FALSE, results='asis', fig.width=14, fig.height=9}
+freq_len_pp_plot(chi_uni_on_subtlex_us, "Children",
+                 gen_par = FALSE, df_freq = mot_freq,
+                 freq_qu_par = freq_mot_qus,
+                 freq_label = "Mot Frequency")
+```
+
+<br>
+
+```{r freq_mot_len_pp_mod, echo = FALSE, results='asis', fig.width=14, fig.height=9}
+freq_len_pp_plot(mod_on_subtlex_us, "Model",
+                 gen_par = FALSE, df_freq = mot_freq,
+                 freq_qu_par = freq_mot_qus,
+                 freq_label = "Mot Frequency")
+```
+
+<br>
+
+### Maternal frequency at each phonemic length (for each different ND tertile)
+
+```{r freq_mot_len_nd_chi, echo = FALSE, results='asis', fig.width=14, fig.height=9}
+freq_len_nd_plot(chi_nei_on, "Children",
+                 gen_par = FALSE, df_freq = mot_freq,
+                 freq_qu_par = freq_mot_qus,
+                 freq_label = "Mot Frequency")
+```
+
+<br>
+
+```{r freq_mot_len_nd_mod, echo = FALSE, results='asis', fig.width=14, fig.height=9}
+freq_len_nd_plot(mod_nei_on, "Model",
+                 gen_par = FALSE, df_freq = mot_freq,
+                 freq_qu_par = freq_mot_qus,
+                 freq_label = "Mot Frequency")
+```
+
+<br>
 
