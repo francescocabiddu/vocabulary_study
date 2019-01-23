@@ -330,7 +330,7 @@ IPhOD Weighted phonotactic probability measure based on written log (base 10) wo
 #### Quantiles table
 
 ```{r echo = FALSE, message=FALSE, warning=FALSE}
-ph_pr_qu_subtlex_us %>%
+pp_qu_subtlex_us %>%
   as.matrix() %>%
   t() %>%
   kable()
@@ -376,10 +376,6 @@ grid_arrange_shared_legend(plot3, plot1, plot2, position = "right",
 ```
 
 **Figure .** Breakdown of PP by tertile
-
-<br>
-
-
 
 <br>
 
@@ -487,6 +483,113 @@ pp_at_length_plot(table, "Model")
 **Figure .** MODEL breakdown with tertiles computed for 2-6 phonemes across all mother and child words, this time computing tertiles individually for each phonemic length
 
 <br> 
+
+### Phonotactic probability at each general frequency tertile
+
+<br>
+
+```{r pp_freq_1, echo = FALSE, results='asis', fig.width=14, fig.height=6}
+table_prop <- function(list_dfs, df_label) {
+  list_dfs[[df_label]] %>%     
+    summarise(sum(ph_pr_qu1), sum(ph_pr_qu2), sum(ph_pr_qu3)) %>%
+    {. / sum(.) * 100} %>%
+    unlist()
+}
+
+table <- tibble(`General Frequency` = c(rep(1,3),rep(2,3),rep(3,3)) %>%
+                  as.factor(),
+                `PP tertile` = rep(c("T1","T2","T3"),3) %>%
+                  as.factor(),
+                `Novel words (%)`= c(table_prop(pp_freqs, "chi_pp_freq1"),
+                                     table_prop(pp_freqs, "chi_pp_freq2"), 
+                                     table_prop(pp_freqs, "chi_pp_freq3")))
+
+pp_at_freq_plot <- function(df, df_label) {
+  ggplot(df, aes(`General Frequency`, `Novel words (%)`)) + 
+  geom_bar(aes(fill = `PP tertile`), stat = "identity", position = "dodge")+
+  scale_y_continuous(limits=c(0, 100), breaks=seq(0, 100, by = 10))+
+  scale_fill_grey()+
+  theme(axis.text=element_text(size=20),
+        axis.title=element_text(size=20),
+        legend.text = element_text(size=20),
+        legend.title = element_text(size = 20),
+        legend.key.size = unit(1,"cm"))+
+  ggtitle(df_label) +
+  theme(plot.title = element_text(hjust = 0.5, size = 25))
+}
+
+pp_at_freq_plot(table, "Children")
+```
+
+**Figure .** CHILD Percentage of words in each LOG PP tertile across general frequency tertiles
+
+<br>
+
+```{r pp_freq_2, echo = FALSE, results='asis', fig.width=14, fig.height=6}
+table <- tibble(`General Frequency` = c(rep(1,3),rep(2,3),rep(3,3)) %>%
+                  as.factor(),
+                `PP tertile` = rep(c("T1","T2","T3"),3) %>%
+                  as.factor(),
+                `Novel words (%)`= c(table_prop(pp_freqs, "mod_pp_freq1"),
+                                     table_prop(pp_freqs, "mod_pp_freq2"), 
+                                     table_prop(pp_freqs, "mod_pp_freq3")))
+
+pp_at_freq_plot(table, "Model")
+```
+
+**Figure .** Model Percentage of words in each LOG PP tertile across general frequency tertiles
+
+<br> 
+
+### Phonotactic probability at each maternal frequency tertile
+
+<br>
+
+```{r pp_mot_freq_1, echo = FALSE, results='asis', fig.width=14, fig.height=6, warning=FALSE, message=FALSE}
+table <- tibble(`Maternal Frequency` = c(rep(1,3),rep(2,3),rep(3,3)) %>%
+                  as.factor(),
+                `PP tertile` = rep(c("T1","T2","T3"),3) %>%
+                  as.factor(),
+                `Novel words (%)`= c(table_prop(pp_mot_freqs, "chi_pp_freq1"),
+                                     table_prop(pp_mot_freqs, "chi_pp_freq2"), 
+                                     table_prop(pp_mot_freqs, "chi_pp_freq3")))
+
+pp_at_freq_mot_plot <- function(df, df_label) {
+  ggplot(df, aes(`Maternal Frequency`, `Novel words (%)`)) + 
+  geom_bar(aes(fill = `PP tertile`), stat = "identity", position = "dodge")+
+  scale_y_continuous(limits=c(0, 100), breaks=seq(0, 100, by = 10))+
+  scale_fill_grey()+
+  theme(axis.text=element_text(size=20),
+        axis.title=element_text(size=20),
+        legend.text = element_text(size=20),
+        legend.title = element_text(size = 20),
+        legend.key.size = unit(1,"cm"))+
+  ggtitle(df_label) +
+  theme(plot.title = element_text(hjust = 0.5, size = 25))
+}
+
+pp_at_freq_mot_plot(table, "Children")
+```
+
+**Figure .** CHILD Percentage of words in each LOG PP tertile across Maternal Frequency tertiles
+
+<br>
+
+```{r pp_mot_freq_2, echo = FALSE, results='asis', fig.width=14, fig.height=6, warning=FALSE, message=FALSE}
+table <- tibble(`Maternal Frequency` = c(rep(1,3),rep(2,3),rep(3,3)) %>%
+                  as.factor(),
+                `PP tertile` = rep(c("T1","T2","T3"),3) %>%
+                  as.factor(),
+                `Novel words (%)`= c(table_prop(pp_mot_freqs, "mod_pp_freq1"),
+                                     table_prop(pp_mot_freqs, "mod_pp_freq2"), 
+                                     table_prop(pp_mot_freqs, "mod_pp_freq3")))
+
+pp_at_freq_mot_plot(table, "Model")
+```
+
+**Figure .** Model Percentage of words in each LOG PP tertile across Maternal Frequency tertiles
+
+<br>
 
 ## Neighbourhood density
 
@@ -1069,7 +1172,7 @@ freq_at_length_plot(table, "Model")
 
 ## Maternal Frequency
 
-Frequency based on Mothers' corpus. Children's words that are not present in the maternal speech have no frequency value and therefore were excluded. Therefore, words' frequency always starts from 1. This could be seen in the graphs below, where the first quartile (word frequency < 1) contains 0% of words.
+Frequency based on Mothers' corpus. Children's words that are not present in the maternal speech have no frequency value and therefore were excluded. Therefore, words' frequency always starts from 1.
 
 <br>
 
@@ -1095,7 +1198,7 @@ grid_arrange_shared_legend(plot3, plot1, plot2, position = "right",
                            widths1 = 2, widths2 = 0.5, hjust1 = 1)
 ```
 
-**Figure.** Breakdown of Maternal frequency by quartile
+**Figure.** Breakdown of Maternal frequency by tertile
 
 <br>
 
@@ -1194,4 +1297,6 @@ freq_at_length_mot_plot(table, "Model")
 ```
 
 **Figure .** MODEL breakdown with tertiles computed for 2-6 phonemes across all mother and child words, this time computing tertiles individually for each phonemic length
+
+<br> 
 
