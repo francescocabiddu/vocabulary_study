@@ -1,0 +1,1197 @@
+---
+output:
+  word_document:
+    toc: yes
+    reference_docx: template1.docx
+toc-title: 'Vocabulary paper results (v4)'
+
+---
+
+<!-- loading packages, user-defined functions and datasets -->
+```{r echo=FALSE, warning=FALSE, message=FALSE, cache=FALSE, include=FALSE}
+lib <- c("tidyverse","knitr","gridExtra",
+         "car","kableExtra", "magick", "grid")
+lapply(lib, require, character.only = TRUE)
+load(file="ws5.RData")
+
+options(knitr.table.format = 'markdown')
+```
+
+<!-- set folder for graphs -->
+```{r opts, echo = FALSE}
+knitr::opts_chunk$set(
+  fig.path = "images/"
+)
+```
+
+<!-- additional funs -->
+```{r echo = FALSE}
+grid_arrange_shared_legend <- function(..., nrow = 1,y_title, x_size, y_size,widths1 = 2, widths2=0.2,hjust1=1, x_title, ncol = length(list(...)), position = c("bottom", "right")) {
+
+  plots <- list(...)
+  position <- match.arg(position)
+  g <- ggplotGrob(plots[[1]] + theme(legend.position = position))$grobs
+  legend <- g[[which(sapply(g, function(x) x$name) == "guide-box")]]
+  lheight <- sum(legend$height)
+  lwidth <- sum(legend$width)
+  gl <- lapply(plots, function(x) x + theme(legend.position = "none"))
+  gl <- c(gl, nrow = nrow, ncol = ncol)
+
+  combined <- switch(position,
+                     "bottom" = arrangeGrob(do.call(arrangeGrob, gl),
+                                            legend,
+                                            ncol = 1,
+                                            heights = unit.c(unit(1, "npc") - lheight, lheight)),
+                     "right" = arrangeGrob(do.call(arrangeGrob, gl),
+                                           legend,
+                                           ncol = 2,
+                                           widths = c(widths1, widths2),
+                                           left=textGrob(y_title, gp=gpar(fontsize=y_size), rot = 90),
+                                           bottom=textGrob(x_title, gp=gpar(fontsize=x_size), vjust = 0, hjust = hjust1)))
+  grid.newpage()
+  grid.draw(combined)
+
+}
+
+```
+<br>
+
+## Basic results
+
+<br>
+
+#### Table   
+Unique words used by the mother and words produced by the children and model, for each stage of the input. 
+
+```{r echo = FALSE, warning=FALSE}
+summary_words <- function(df) {
+  df %>%
+    group_by(section) %>%
+    summarise(avg_n_uni = mean(n_uni),
+              sd_n_uni = sd(n_uni)) %>%
+    ungroup() %>%
+    round_df(0) %>%
+    unite(avg_sd, c(avg_n_uni, sd_n_uni), sep = " ") %>%
+    mutate(avg_sd = avg_sd %>%
+             str_replace(" ", " (") %>%
+             str_replace("$", ")")) %>%
+    .$avg_sd
+}
+
+tibble(Stage = 1:20, 
+       Child = chi_uni %>%
+         summary_words(),
+       Model = mod %>%
+         summary_words(),
+       Mother = mot_uni %>%
+         summary_words()) %>%
+  kable()
+```
+
+
+<br>
+
+#### Table   
+Words produced by each subject. Correlations for each subject considering words produced over 20 stages (N=20).
+
+```{r table2_main, echo = FALSE, results='asis', warning=FALSE}
+# different transformations were used to meet the assumption of normality (if not Spearman test was used)
+table <- data.frame(Subject = unique(chi_uni$baby))
+table$Chi <- chi_uni$cum_uni[which(chi_uni$section == 20)]
+table$Mod <- mod$cum_uni[which(chi_uni$section == 20)]
+table$Mot <- mot_uni$cum_uni[which(chi_uni$section == 20)]
+
+for (i in unique(chi_uni$baby)[c(1, 3:6, 8:9)]) {
+  test <- cor.test(log(chi_uni$n_uni[which(chi_uni$baby == i & chi_uni$section != 1)]),
+                   log(mod$n_uni[which(mod$baby == i & mod$section != 1)]))
+  table$r_chi.mod[table$Subject == i] <- round(test$estimate,2)
+}
+for (i in unique(chi_uni$baby)[c(2, 7)]) {
+  test <- cor.test((chi_uni$n_uni[which(chi_uni$baby == i & chi_uni$section != 1)]),
+                   (mod$n_uni[which(mod$baby == i & mod$section != 1)]), method = "spearman")
+  table$r_chi.mod[table$Subject == i] <- round(test$estimate,2)
+}
+for (i in unique(chi_uni$baby)[c(10)]) {
+  test <- cor.test(1/(chi_uni$n_uni[which(chi_uni$baby == i & chi_uni$section != 1)]),
+                   1/(mod$n_uni[which(mod$baby == i & mod$section != 1)]))
+  table$r_chi.mod[table$Subject == i] <- round(test$estimate,2)
+}
+for (i in unique(chi_uni$baby)[c(11, 12)]) {
+  test <- cor.test(sqrt(chi_uni$n_uni[which(chi_uni$baby == i & chi_uni$section != 1)]),
+                   sqrt(mod$n_uni[which(mod$baby == i & mod$section != 1)]))
+  table$r_chi.mod[table$Subject == i] <- round(test$estimate,2)
+}
+for (i in unique(chi_uni$baby)) {
+  table$rmse_chi.mod[table$Subject == i] <- round(rmse(chi_uni$n_uni[which(chi_uni$baby == i)] - mod$n_uni[which(mod$baby == i)]),0)
+}
+
+
+for (i in unique(chi_uni$baby)[c(1, 3:6, 8:9, 10, 12)]) {
+  test <- cor.test(log(chi_uni$n_uni[which(chi_uni$baby == i & chi_uni$section != 1)]),
+                   log(mot_uni$n_uni[which(mot_uni$baby == i & mot_uni$section != 1)]))
+  table$r_chi.mot[table$Subject == i] <- round(test$estimate,2)
+}
+for (i in unique(chi_uni$baby)[c(11)]) {
+  test <- cor.test(sqrt(chi_uni$n_uni[which(chi_uni$baby == i & chi_uni$section != 1)]),
+                   sqrt(mot_uni$n_uni[which(mot_uni$baby == i & mot_uni$section != 1)]))
+  table$r_chi.mot[table$Subject == i] <- round(test$estimate,2)
+}
+for (i in unique(chi_uni$baby)[c(2, 7)]) {
+  test <- cor.test((chi_uni$n_uni[which(chi_uni$baby == i & chi_uni$section != 1)]),
+                   (mot_uni$n_uni[which(mot_uni$baby == i & mot_uni$section != 1)]), method = "spearman")
+  table$r_chi.mot[table$Subject == i] <- round(test$estimate,2)
+}
+
+for (i in unique(chi_uni$baby)) {
+  table$rmse_chi.mot[table$Subject == i] <- round(rmse(chi_uni$n_uni[which(chi_uni$baby == i)] - mot_uni$n_uni[which(mot_uni$baby == i)]),0)
+}
+
+
+for (i in unique(mod$baby)[c(1, 3:6, 7, 8:9, 11, 12)]) {
+  test <- cor.test(log(mod$n_uni[which(mod$baby == i & mod$section != 1)]),
+                   log(mot_uni$n_uni[which(mot_uni$baby == i & mot_uni$section != 1)]))
+  table$r_mod.mot[table$Subject == i] <- round(test$estimate,2)
+}
+
+for (i in unique(mod$baby)[c(2, 10)]) {
+  test <- cor.test(1/(mod$n_uni[which(mod$baby == i & mod$section != 1)]),
+                   1/(mot_uni$n_uni[which(mot_uni$baby == i & mot_uni$section != 1)]))
+  table$r_mod.mot[table$Subject == i] <- round(test$estimate,2)
+}
+
+for (i in unique(mod$baby)) {
+  table$rmse_mod.mot[table$Subject == i] <- round(rmse(mod$n_uni[which(mod$baby == i)] - mot_uni$n_uni[which(mot_uni$baby == i)]),0)
+}
+
+means_table <- data.frame(Subject = "MEAN", Chi = mean(table$Chi), Mod = mean(table$Mod), 
+                          Mot = mean(table$Mot), r_chi.mod = "-", rmse_chi.mod = round(mean(table$rmse_chi.mod),0),
+                          r_chi.mot = "-", rmse_chi.mot = round(mean(table$rmse_chi.mot),0), r_mod.mot = "-", rmse_mod.mot = round(mean(table$rmse_mod.mot),0) )
+table <- rbind(table, means_table)
+table$Chi <- round(table$Chi,0); table$Mod <- round(table$Mod,0);table$Mot <- round(table$Mot,0)
+kable(table)
+```
+
+<br>
+
+Words that children have produced differently from model and mothers (percentages) and vice versa. Words that mothers have produced differently from model.
+
+```{r diff_words_main, echo=FALSE}
+table <- data.frame(id = c(unique(chi_uni$baby), "MEAN"),
+                    chi_not_mod = c(rep(NA, length(unique(chi_uni$baby))),NA),
+                    mod_not_chi = c(rep(NA, length(unique(chi_uni$baby))),NA),
+                    chi_not_mot = c(rep(NA, length(unique(chi_uni$baby))),NA),
+                    mot_not_chi = c(rep(NA, length(unique(chi_uni$baby))),NA),
+                    mot_not_mod = c(rep(NA, length(unique(chi_uni$baby))),NA),
+                    stringsAsFactors = F)
+
+for (i in table$id[-nrow(table)]) {
+  chi_uni_sub <- chi_uni %>% filter(baby  == i)
+  mod_sub <- mod %>% filter(baby  == i)
+  mot_uni_sub <- mot_uni %>% filter(baby  == i)
+  
+  table$chi_not_mod[which(table$id == i)] <- (sum(!unique(unlist(chi_uni_sub$phon)) %in% unique(unlist(mod_sub$phon))) / 
+  length(unique(unlist(chi_uni_sub$phon))))*100
+  
+  table$mod_not_chi[which(table$id == i)] <- (sum(!unique(unlist(mod_sub$phon)) %in% unique(unlist(chi_uni_sub$phon))) / 
+  length(unique(unlist(mod_sub$phon))))*100
+  
+    table$chi_not_mot[which(table$id == i)] <- (sum(!unique(unlist(chi_uni_sub$phon)) %in% unique(unlist(mot_uni_sub$phon))) / 
+  length(unique(unlist(chi_uni_sub$phon))))*100
+  
+  table$mot_not_chi[which(table$id == i)] <- (sum(!unique(unlist(mot_uni_sub$phon)) %in% unique(unlist(chi_uni_sub$phon))) / 
+  length(unique(unlist(mot_uni_sub$phon))))*100
+  
+  table$mot_not_mod[which(table$id == i)] <- (sum(!unique(unlist(mot_uni_sub$phon)) %in% unique(unlist(mod_sub$phon))) / 
+  length(unique(unlist(mot_uni_sub$phon))))*100
+  
+}
+
+table$chi_not_mod[which(table$id == "MEAN")] <- mean(table$chi_not_mod[-nrow(table)])
+table$mod_not_chi[which(table$id == "MEAN")] <- mean(table$mod_not_chi[-nrow(table)])
+table$chi_not_mot[which(table$id == "MEAN")] <- mean(table$chi_not_mot[-nrow(table)])
+table$mot_not_chi[which(table$id == "MEAN")] <- mean(table$mot_not_chi[-nrow(table)])
+table$mot_not_mod[which(table$id == "MEAN")] <- mean(table$mot_not_mod[-nrow(table)])
+
+round_df <- function(df, digits) {
+  nums <- vapply(df, is.numeric, FUN.VALUE = logical(1))
+
+  df[,nums] <- round(df[,nums], digits = digits)
+
+  (df)
+}
+
+table <- round_df(table, 2)
+
+kable(table)
+```
+
+
+<br>
+
+
+## Word length
+
+<br>
+
+```{r syll_length_plot, echo = FALSE, results='asis', fig.width=16, fig.height=9}
+plot_syll_length <- function(df, df_label) {
+  ggplot(df, aes(x=section, y=len_1_perc, fill=baby, shape="1 syll")) + 
+  geom_point(size=4, alpha=0.2) +
+  scale_x_continuous(breaks=c(1, seq(5,20, 5))) +
+  labs(x = "", y = "") +
+  ggtitle(df_label) +
+  theme(plot.title = element_text(hjust = 0.5, size = 25)) +
+  geom_point(aes(x=section, y=len_2_perc, fill=baby, shape="2 syll"),size=4,alpha=0.2) + 
+  geom_point(aes(x=section, y=len_3_perc, fill=baby, shape="3 syll"),size=4,alpha=0.2) + 
+  scale_shape_manual("", values=c(`1 syll`= 0, `2 syll`= 3, `3 syll` = 2))+
+  scale_y_continuous(limits=c(0, 100), breaks=seq(0, 100, by = 25))+
+  guides(fill=FALSE, alpha=F)+
+  geom_smooth(aes(x=section, y=len_1_perc), fill=NA, colour="black", method="lm",linetype="dotted")+
+  geom_smooth(aes(x=section, y=len_2_perc), fill=NA, colour="black", method="lm",linetype="dotted")+
+  geom_smooth(aes(x=section, y=len_3_perc), fill=NA, colour="black", method="lm",linetype="dotted")+
+  theme(axis.text=element_text(size=18),
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 20))+  
+  scale_colour_grey(start = 0, end = .9)
+}
+
+plot1 <- plot_syll_length(chi_uni, "Children") 
+plot2 <- plot_syll_length(mod, "Model") 
+plot3 <- plot_syll_length(mot_uni, "Mothers") 
+
+grid_arrange_shared_legend(plot3, plot1, plot2, position = "right", 
+                           x_title = "Stage", y_title = "Novel words (%)",
+                           x_size = 25, y_size = 25)
+```
+
+**Figure .** Proportion of unique words (e.g., those words produced at stage 3 that were not present in any previous stage) that are one-syllable, two-syllable, and three-syllable at each stage of the mother and child transcriptions and model’s learning.
+
+
+<br>
+
+```{r phon_length_plot, echo = FALSE, results='asis', fig.width=16, fig.height=9}
+phon_length_plot <- function(df, df_label) {
+  ggplot(df, aes(x=section, y=len2_3_perc, fill=baby, shape="3 phon")) + 
+  geom_point(size=3.5, alpha=0.2) +
+  scale_x_continuous(breaks=c(1, seq(5,20, 5))) +
+  labs(x = " ", y = " ") +
+  ggtitle(df_label) +
+  theme(plot.title = element_text(hjust = 0.5, size=25)) +
+  geom_point(aes(x=section, y=len2_4_perc, fill=baby, shape="4 phon"),size=3.5,alpha=0.2) + 
+  geom_point(aes(x=section, y=len2_5_perc, fill=baby, shape="5 phon"),size=3.5,alpha=0.2) + 
+  geom_point(aes(x=section, y=len2_6_perc, fill=baby, shape="6 phon"),size=3.5,alpha=0.2) + 
+  geom_point(aes(x=section, y=len2_7_perc, fill=baby, shape="7 phon"),size=3.5,alpha=0.2) + 
+  geom_point(aes(x=section, y=len2_8_perc, fill=baby, shape="8 phon"),size=3.5,alpha=0.2) + 
+  geom_point(aes(x=section, y=len2_2_perc, fill=baby, shape="2 phon"),size=3.5,alpha=0.2) + 
+  scale_shape_manual("", values=c(`3 phon`= 0, `4 phon`= 3, `2 phon` = 6, `5 phon` = 2,
+                                        `6 phon` = 1, `7 phon` = 4, `8 phon` = 5),
+                        breaks= c("3 phon", "4 phon","5 phon" , "2 phon", "6 phon", "7 phon", "8 phon"))+
+  scale_y_continuous(limits=c(0, 50), breaks=seq(0, 50, by = 10))+
+  guides(fill=FALSE, alpha=F)+
+  geom_smooth(aes(x=section, y=len2_3_perc,linetype="3 phon"), fill=NA, colour="black", method="lm",size=1)+
+  geom_smooth(aes(x=section, y=len2_4_perc,linetype="4 phon"), fill=NA, colour="black", method="lm",size=1)+
+  geom_smooth(aes(x=section, y=len2_5_perc,linetype="5 phon"), fill=NA, colour="black", method="lm",size=1)+
+  geom_smooth(aes(x=section, y=len2_6_perc,linetype="6 phon"), fill=NA, colour="black", method="lm",size=1)+
+  geom_smooth(aes(x=section, y=len2_7_perc,linetype="7 phon"), fill=NA, colour="black", method="lm",size=1)+
+  geom_smooth(aes(x=section, y=len2_8_perc,linetype="8 phon"), fill=NA, colour="black", method="lm",size=1)+
+  geom_smooth(aes(x=section, y=len2_2_perc,linetype="2 phon"), fill=NA, colour="black", method="lm",size=1)+
+  theme(axis.text=element_text(size=18),
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 20),
+        legend.key.size = unit(1, "cm"))+  
+  scale_colour_grey(start = 0, end = .9)+
+  scale_linetype_manual("", values=c(`3 phon`= "dotted", `4 phon`= "solid", `2 phon`= "4C88C488", `5 phon` = "dashed",
+                                        `6 phon` = "12345678", `7 phon` = "1F", `8 phon` = "dotdash"),
+                        breaks= c("3 phon", "4 phon", "5 phon","2 phon", "6 phon", "7 phon", "8 phon"))
+}
+  
+plot1 <- phon_length_plot(chi_uni, "Children")
+plot2 <- phon_length_plot(mod, "Model")
+plot3 <- phon_length_plot(mot_uni, "Mothers")
+
+grid_arrange_shared_legend(plot3, plot1, plot2, position = "right", 
+                           x_title = "Stage", y_title = "Novel words (%)",
+                           x_size = 25, y_size = 25,
+                           widths1 = 2, widths2 = 0.5, hjust1 = 1)
+```
+
+**Figure 2.** Proportion of unique words (e.g., those words produced at stage 3 that were not present in any previous stage) between two and eight phonemes in length at each stage of the mother and child transcriptions and model’s learning. 
+
+<br>
+
+## Phonotactic probability
+
+<br>
+
+IPhOD Weighted phonotactic probability measure based on written log (base 10) word frequencies from the [SUBTLEXus database](https://www.ugent.be/pp/experimentele-psychologie/en/research/documents/subtlexus) (Brysbaert & New, 2009). 
+
+<br>
+
+#### Quantiles table
+
+```{r echo = FALSE, message=FALSE, warning=FALSE}
+ph_pr_qu_subtlex_us %>%
+  as.matrix() %>%
+  t() %>%
+  kable()
+```
+
+<br>
+
+```{r logpp, echo = FALSE, results='asis', fig.width=16, fig.height=9}
+plot_pp <- function(df, main_title) {
+  ggplot(df, aes(x=section, y=ph_pr_qu1_perc, fill=baby, shape="T1")) + 
+  geom_point(size=4, alpha=0.2) +
+  scale_x_continuous(breaks=c(1, seq(5,20, 5))) +
+  labs(x = " ", y = " ") +
+  ggtitle(main_title) +
+  theme(plot.title = element_text(hjust = 0.5, size = 25)) +
+  geom_point(aes(x=section, y=ph_pr_qu2_perc, fill=baby, shape="T2"),size=4, alpha=0.2) + 
+  geom_point(aes(x=section, y=ph_pr_qu3_perc, fill=baby, shape="T3"), size=4,alpha=0.2) + 
+  scale_shape_manual("PP tertile", values=c(`T1`= 0, `T2`= 3, `T3` = 2),
+                     breaks=c("T1","T2", "T3"))+
+  scale_y_continuous(limits=c(0, 70), breaks=seq(0, 70, by = 10))+
+  guides(fill=FALSE)+
+  geom_smooth(aes(x=section, y=ph_pr_qu1_perc,linetype="T1"), fill=NA, colour="black", method="lm", size=0.8)+
+  geom_smooth(aes(x=section, y=ph_pr_qu2_perc,linetype="T2"), fill=NA, colour="black", method="lm", size=0.8)+
+  geom_smooth(aes(x=section, y=ph_pr_qu3_perc,linetype="T3"), fill=NA, colour="black", method="lm", size=0.8)+
+  theme(axis.text=element_text(size=18),         
+        legend.text = element_text(size = 20),         
+        legend.title = element_text(size = 20),         
+        legend.key.size = unit(1, "cm")) +     
+    scale_colour_grey(start = 0, end = .9)+
+  scale_linetype_manual("PP tertile", 
+                        values=c(`T1` = "longdash",`T2` = "solid", `T3`= "dotted"),
+                        breaks=c("T1","T2", "T3"))
+}
+
+plot1 <- plot_pp(chi_uni_on_subtlex_us, "Children") 
+plot2 <- plot_pp(mod_on_subtlex_us, "Model") 
+plot3 <- plot_pp(mot_uni_on_subtlex_us, "Mothers") 
+
+grid_arrange_shared_legend(plot3, plot1, plot2, position = "right", 
+                           x_title = "Stage", y_title = "Novel words (%)",
+                           x_size = 25, y_size = 25,
+                           widths1 = 2, widths2 = 0.5, hjust1 = 1)
+```
+
+**Figure .** Breakdown of PP by tertile
+
+<br>
+
+
+
+<br>
+
+### Phonotactic probability at each phonemic word length
+
+<br>
+
+```{r pp_length1_chi, echo = FALSE, results='asis', fig.width=14, fig.height=6}
+table_prop <- function(list_dfs, df_label) {
+  list_dfs[[df_label]] %>%     
+    summarise(sum(ph_pr_qu1), sum(ph_pr_qu2), sum(ph_pr_qu3)) %>%
+    {. / sum(.) * 100} %>%
+    unlist()
+}
+
+table <- tibble(`Phonemic length` = c(rep(2,3), rep(3,3), 
+                                      rep(4,3), rep(5,3), 
+                                      rep(6,3)) %>%
+                  as.factor(),
+                `PP tertile` = rep(c("T1","T2","T3"),5) %>%
+                  as.factor(),
+                `Novel words (%)`= c(table_prop(log_pp_lengths, "chi_uni_len2"),
+                                     table_prop(log_pp_lengths, "chi_uni_len3"), 
+                                     table_prop(log_pp_lengths, "chi_uni_len4"),
+                                     table_prop(log_pp_lengths, "chi_uni_len5"), 
+                                     table_prop(log_pp_lengths, "chi_uni_len6")))
+
+pp_at_length_plot <- function(df, df_label) {
+  ggplot(df, aes(`Phonemic length`, `Novel words (%)`)) + 
+  geom_bar(aes(fill = `PP tertile`), stat = "identity", position = "dodge")+
+  scale_y_continuous(limits=c(0, 100), breaks=seq(0, 100, by = 10))+
+  scale_fill_grey()+
+  theme(axis.text=element_text(size=20),
+        axis.title=element_text(size=20),
+        legend.text = element_text(size=20),
+        legend.title = element_text(size = 20),
+        legend.key.size = unit(1,"cm"))+
+  ggtitle(df_label) +
+  theme(plot.title = element_text(hjust = 0.5, size = 25))
+}
+
+pp_at_length_plot(table, "Children")
+```
+
+**Figure .** CHILD breakdown with tertiles computed for 2-6 phonemes across all mother and child words, using the same tertiles to breakdown each length
+
+<br>
+
+```{r pp_length1_mod, echo = FALSE, results='asis', fig.width=14, fig.height=6}
+table <- tibble(`Phonemic length` = c(rep(2,3), rep(3,3), 
+                                      rep(4,3), rep(5,3), 
+                                      rep(6,3)) %>%
+                  as.factor(),
+                `PP tertile` = rep(c("T1","T2","T3"),5) %>%
+                  as.factor(),
+                `Novel words (%)`= c(table_prop(log_pp_lengths, "mod_len2"),
+                                     table_prop(log_pp_lengths, "mod_len3"), 
+                                     table_prop(log_pp_lengths, "mod_len4"),
+                                     table_prop(log_pp_lengths, "mod_len5"), 
+                                     table_prop(log_pp_lengths, "mod_len6")))
+
+pp_at_length_plot(table, "Model")
+```
+
+**Figure .** MODEL breakdown with tertiles computed for 2-6 phonemes across all mother and child words, using the same tertiles to breakdown each length
+
+<br>
+
+```{r pp_length2_chi, echo = FALSE, results='asis', fig.width=14, fig.height=6}
+table <- tibble(`Phonemic length` = c(rep(2,3), rep(3,3), 
+                                      rep(4,3), rep(5,3), 
+                                      rep(6,3)) %>%
+                  as.factor(),
+                `PP tertile` = rep(c("T1","T2","T3"),5) %>%
+                  as.factor(),
+                `Novel words (%)`= c(table_prop(log_pp_lengths, "chi_uni_len2b"),
+                                     table_prop(log_pp_lengths, "chi_uni_len3b"), 
+                                     table_prop(log_pp_lengths, "chi_uni_len4b"),
+                                     table_prop(log_pp_lengths, "chi_uni_len5b"), 
+                                     table_prop(log_pp_lengths, "chi_uni_len6b")))
+
+pp_at_length_plot(table, "Children")
+```
+
+**Figure .** CHILD breakdown with tertiles computed for 2-6 phonemes across all mother and child words, this time computing tertiles individually for each phonemic length
+
+<br>
+
+```{r pp_length2_mod, echo = FALSE, results='asis', fig.width=14, fig.height=6}
+table <- tibble(`Phonemic length` = c(rep(2,3), rep(3,3), 
+                                      rep(4,3), rep(5,3), 
+                                      rep(6,3)) %>%
+                  as.factor(),
+                `PP tertile` = rep(c("T1","T2","T3"),5) %>%
+                  as.factor(),
+                `Novel words (%)`= c(table_prop(log_pp_lengths, "mod_len2b"),
+                                     table_prop(log_pp_lengths, "mod_len3b"), 
+                                     table_prop(log_pp_lengths, "mod_len4b"),
+                                     table_prop(log_pp_lengths, "mod_len5b"), 
+                                     table_prop(log_pp_lengths, "mod_len6b")))
+
+pp_at_length_plot(table, "Model")
+```
+
+**Figure .** MODEL breakdown with tertiles computed for 2-6 phonemes across all mother and child words, this time computing tertiles individually for each phonemic length
+
+<br> 
+
+## Neighbourhood density
+
+<br>
+
+#### Quantiles table
+
+```{r echo = FALSE, message=FALSE, warning=FALSE}
+nei_qu %>%
+  as.matrix() %>%
+  t() %>%
+  kable()
+```
+
+<br>
+
+```{r nei, echo = FALSE, results='asis', fig.width=16, fig.height=9}
+plot_nei <- function(df, main_title) {
+  ggplot(df, aes(x=section, y=nei_qu1_perc, fill=baby, shape="T1")) + 
+  geom_point(size=4, alpha=0.2) +
+  scale_x_continuous(breaks=c(1, seq(5,20, 5))) +
+  labs(x = " ", y = " ") +
+  ggtitle(main_title) +
+  theme(plot.title = element_text(hjust = 0.5, size = 25)) +
+  geom_point(aes(x=section, y=nei_qu2_perc, fill=baby, shape="T2"), size=4,alpha=0.2) + 
+  geom_point(aes(x=section, y=nei_qu3_perc, fill=baby, shape="T3"), size=4,alpha=0.2) + 
+  scale_shape_manual("ND Tertile", values=c(`T1`= 0, `T2`= 3, `T3` = 2),
+                     breaks=c("T3","T2","T1"))+
+  scale_y_continuous(limits=c(0, 100), breaks=seq(0, 100, by = 25))+
+  guides(fill=FALSE)+
+  geom_smooth(aes(x=section, y=nei_qu1_perc,linetype="T1"), 
+              fill=NA, colour="black", method="lm", size=0.8) +
+  geom_smooth(aes(x=section, y=nei_qu2_perc,linetype="T2"), 
+              fill=NA, colour="black", method="lm", size=0.8) +
+  geom_smooth(aes(x=section, y=nei_qu3_perc,linetype="T3"), 
+              fill=NA, colour="black", method="lm", size=0.8) +
+  theme(axis.text=element_text(size=18),         
+        legend.text = element_text(size = 20),         
+        legend.title = element_text(size = 20),         
+        legend.key.size = unit(1, "cm")) +     
+    scale_colour_grey(start = 0, end = .9) +
+  scale_linetype_manual("ND Tertile", 
+                        values=c(`T1` = "longdash",
+                                 `T2` = "solid", `T3`= "dotted"), 
+                        breaks=c("T3","T2","T1"))
+}
+
+plot1 <- plot_nei(chi_nei_on, "Children") 
+plot2 <- plot_nei(mod_nei_on, "Model") 
+plot3 <- plot_nei(mot_nei_on, "Mothers") 
+
+grid_arrange_shared_legend(plot3, plot1, plot2, position = "right", 
+                           x_title = "Stage", y_title = "Novel words (%)",
+                           x_size = 25, y_size = 25,
+                           widths1 = 2, widths2 = 0.5, hjust1 = 1)
+```
+
+**Figure .** Breakdown of ND by tertile
+
+<br>
+
+### Neighbourhood density at each phonemic word length
+
+<br>
+
+```{r nd_length1_chi, echo = FALSE, results='asis', fig.width=14, fig.height=6}
+table_prop <- function(list_dfs, df_label) {
+  list_dfs[[df_label]] %>%     
+    summarise(sum(nei_qu1), sum(nei_qu2), sum(nei_qu3)) %>%
+    {. / sum(.) * 100} %>%
+    unlist()
+}
+
+table <- tibble(`Phonemic length` = c(rep(2,3), rep(3,3), 
+                                      rep(4,3), rep(5,3), 
+                                      rep(6,3)) %>%
+                  as.factor(),
+                `ND tertile` = rep(c("T1","T2","T3"),5) %>%
+                  as.factor(),
+                `Novel words (%)`= c(table_prop(nd_lengths, "chi_uni_len2"),
+                                     table_prop(nd_lengths, "chi_uni_len3"), 
+                                     table_prop(nd_lengths, "chi_uni_len4"),
+                                     table_prop(nd_lengths, "chi_uni_len5"), 
+                                     table_prop(nd_lengths, "chi_uni_len6")))
+
+nd_at_length_plot <- function(df, df_label) {
+  ggplot(df, aes(`Phonemic length`, `Novel words (%)`)) + 
+  geom_bar(aes(fill = `ND tertile`), stat = "identity", position = "dodge")+
+  scale_y_continuous(limits=c(0, 100), breaks=seq(0, 100, by = 10))+
+  scale_fill_grey()+
+  theme(axis.text=element_text(size=20),
+        axis.title=element_text(size=20),
+        legend.text = element_text(size=20),
+        legend.title = element_text(size = 20),
+        legend.key.size = unit(1,"cm"))+
+  ggtitle(df_label) +
+  theme(plot.title = element_text(hjust = 0.5, size = 25))
+}
+
+nd_at_length_plot(table, "Children")
+```
+**Figure XX.** Proportion of novel words produced in each neighbourhood density tertile by phonemic length. Tertiles are based on the whole dataset of two to six phoneme words. 
+
+<br>
+
+```{r nd_length1_mod, echo = FALSE, results='asis', fig.width=14, fig.height=6}
+table <- tibble(`Phonemic length` = c(rep(2,3), rep(3,3), 
+                                      rep(4,3), rep(5,3), 
+                                      rep(6,3)) %>%
+                  as.factor(),
+                `ND tertile` = rep(c("T1","T2","T3"),5) %>%
+                  as.factor(),
+                `Novel words (%)`= c(table_prop(nd_lengths, "mod_len2"),
+                                     table_prop(nd_lengths, "mod_len3"), 
+                                     table_prop(nd_lengths, "mod_len4"),
+                                     table_prop(nd_lengths, "mod_len5"), 
+                                     table_prop(nd_lengths, "mod_len6")))
+
+nd_at_length_plot(table, "Model")
+```
+
+
+<br>
+
+```{r nd_length2_chi, echo = FALSE, results='asis', fig.width=14, fig.height=6}
+table <- tibble(`Phonemic length` = c(rep(2,3), rep(3,3), 
+                                      rep(4,3), rep(5,3), 
+                                      rep(6,3)) %>%
+                  as.factor(),
+                `ND tertile` = rep(c("T1","T2","T3"),5) %>%
+                  as.factor(),
+                `Novel words (%)`= c(table_prop(nd_lengths, "chi_uni_len2b"),
+                                     table_prop(nd_lengths, "chi_uni_len3b"), 
+                                     table_prop(nd_lengths, "chi_uni_len4b"),
+                                     table_prop(nd_lengths, "chi_uni_len5b"), 
+                                     table_prop(nd_lengths, "chi_uni_len6b")))
+
+nd_at_length_plot(table, "Children")
+```
+**Figure SS.** Proportion of novel words produced in each neighbourhood density tertile by phonemic length. tertiles are based on the specific dataset considered (from three to six phoneme words).
+
+
+<br>
+
+```{r nd_length2_mod, echo = FALSE, results='asis', fig.width=14, fig.height=6}
+table <- tibble(`Phonemic length` = c(rep(2,3), rep(3,3), 
+                                      rep(4,3), rep(5,3), 
+                                      rep(6,3)) %>%
+                  as.factor(),
+                `ND tertile` = rep(c("T1","T2","T3"),5) %>%
+                  as.factor(),
+                `Novel words (%)`= c(table_prop(nd_lengths, "mod_len2b"),
+                                     table_prop(nd_lengths, "mod_len3b"), 
+                                     table_prop(nd_lengths, "mod_len4b"),
+                                     table_prop(nd_lengths, "mod_len5b"), 
+                                     table_prop(nd_lengths, "mod_len6b")))
+
+nd_at_length_plot(table, "Model")
+```
+
+<br>
+
+Total number of novel words for each phonemic length (Child)
+
+```{r tot_words_chi_main, echo = FALSE, results='asis', warning=FALSE}
+table <- chi_uni %>% filter(section == 20) %>% select(len2_2_cum, len2_3_cum:len2_6_cum) %>% summarize_all(mean) 
+table2 <- table/sum(table)*100
+table3 <- data.frame(value = c("raw_mean", "perc_mean"))
+table <- rbind(table, table2)
+table3 <- cbind(table3, table)
+
+table3[,2:ncol(table3)] <- round(table3[,2:ncol(table3)],0)
+colnames(table3) <- c("value", "len2", "len3", "len4", "len5", "len6")
+
+kable(table3)
+```
+
+<br>
+
+Total number of novel words for each phonemic length (Model)
+
+```{r tot_words_mod_main, echo = FALSE, results='asis', warning=FALSE}
+table <- mod %>% filter(section == 20) %>% select(len2_2_cum, len2_3_cum:len2_6_cum) %>% summarize_all(mean) 
+table2 <- table/sum(table)*100
+table3 <- data.frame(value = c("raw_mean", "perc_mean"))
+table <- rbind(table, table2)
+table3 <- cbind(table3, table)
+
+table3[,2:ncol(table3)] <- round(table3[,2:ncol(table3)],0)
+colnames(table3) <- c("value", "len2", "len3", "len4", "len5", "len6")
+
+kable(table3)
+```
+
+<br> 
+
+### Neighbourhood Density at each general frequency tertile
+
+<br>
+
+```{r nei_freq_1, echo = FALSE, results='asis', fig.width=14, fig.height=6}
+table_prop <- function(list_dfs, df_label) {
+  list_dfs[[df_label]] %>%     
+    summarise(sum(nei_qu1), sum(nei_qu2), sum(nei_qu3)) %>%
+    {. / sum(.) * 100} %>%
+    unlist()
+}
+
+table <- tibble(`General Frequency` = c(rep(1,3),rep(2,3),rep(3,3)) %>%
+                  as.factor(),
+                `ND tertile` = rep(c("T1","T2","T3"),3) %>%
+                  as.factor(),
+                `Novel words (%)`= c(table_prop(nei_freqs, "chi_nei_freq1"),
+                                     table_prop(nei_freqs, "chi_nei_freq2"), 
+                                     table_prop(nei_freqs, "chi_nei_freq3")))
+
+nd_at_freq_plot <- function(df, df_label) {
+  ggplot(df, aes(`General Frequency`, `Novel words (%)`)) + 
+  geom_bar(aes(fill = `ND tertile`), stat = "identity", position = "dodge")+
+  scale_y_continuous(limits=c(0, 100), breaks=seq(0, 100, by = 10))+
+  scale_fill_grey()+
+  theme(axis.text=element_text(size=20),
+        axis.title=element_text(size=20),
+        legend.text = element_text(size=20),
+        legend.title = element_text(size = 20),
+        legend.key.size = unit(1,"cm"))+
+  ggtitle(df_label) +
+  theme(plot.title = element_text(hjust = 0.5, size = 25))
+}
+
+nd_at_freq_plot(table, "Children")
+```
+
+**Figure .** CHILD Percentage of words in each ND tertile across general frequency tertiles
+
+```{r nei_freq_2, echo = FALSE, results='asis', fig.width=14, fig.height=6}
+table <- tibble(`General Frequency` = c(rep(1,3),rep(2,3),rep(3,3)) %>%
+                  as.factor(),
+                `ND tertile` = rep(c("T1","T2","T3"),3) %>%
+                  as.factor(),
+                `Novel words (%)`= c(table_prop(nei_freqs, "mod_nei_freq1"),
+                                     table_prop(nei_freqs, "mod_nei_freq2"), 
+                                     table_prop(nei_freqs, "mod_nei_freq3")))
+
+nd_at_freq_plot(table, "Model")
+```
+
+**Figure .** Model Percentage of words in each ND tertile across general frequency tertiles
+
+<br> 
+
+### Neighbourhood Density at each maternal frequency tertile
+
+<br>
+
+```{r nei_mot_freq_1, echo = FALSE, results='asis', fig.width=14, fig.height=6, warning=FALSE, message=FALSE}
+nd_at_freq_mot_plot <- function(df, df_label) {
+  ggplot(df, aes(`Maternal Frequency`, `Novel words (%)`)) + 
+  geom_bar(aes(fill = `ND tertile`), stat = "identity", position = "dodge")+
+  scale_y_continuous(limits=c(0, 100), breaks=seq(0, 100, by = 10))+
+  scale_fill_grey()+
+  theme(axis.text=element_text(size=20),
+        axis.title=element_text(size=20),
+        legend.text = element_text(size=20),
+        legend.title = element_text(size = 20),
+        legend.key.size = unit(1,"cm"))+
+  ggtitle(df_label) +
+  theme(plot.title = element_text(hjust = 0.5, size = 25))
+}
+
+table <- tibble(`Maternal Frequency` = c(rep(1,3),rep(2,3),rep(3,3)) %>%
+                  as.factor(),
+                `ND tertile` = rep(c("T1","T2","T3"),3) %>%
+                  as.factor(),
+                `Novel words (%)`= c(table_prop(nei_mot_freqs, "chi_nei_freq1"),
+                                     table_prop(nei_mot_freqs, "chi_nei_freq2"), 
+                                     table_prop(nei_mot_freqs, "chi_nei_freq3")))
+
+nd_at_freq_mot_plot(table, "Children")
+```
+
+**Figure .** CHILD Percentage of words in each ND tertile across Maternal Frequency tertiles
+
+<br>
+
+```{r nei_mot_freq_2, echo = FALSE, results='asis', fig.width=14, fig.height=6, warning=FALSE, message=FALSE}
+table <- tibble(`Maternal Frequency` = c(rep(1,3),rep(2,3),rep(3,3)) %>%
+                  as.factor(),
+                `ND tertile` = rep(c("T1","T2","T3"),3) %>%
+                  as.factor(),
+                `Novel words (%)`= c(table_prop(nei_mot_freqs, "mod_nei_freq1"),
+                                     table_prop(nei_mot_freqs, "mod_nei_freq2"), 
+                                     table_prop(nei_mot_freqs, "mod_nei_freq3")))
+
+nd_at_freq_mot_plot(table, "Model")
+```
+
+**Figure .** Model Percentage of words in each ND tertile across Maternal Frequency tertiles
+
+<br> 
+
+## Grammatical categories
+
+Plural common nouns and verbs were considered in their root form. As the model words are only available in phonetic trascription, they were transformed in orthographic choosing the most frequent orthographic form for each word in Mothers. To assign the grammatical category, for each type the most frequent grammatical category in its correspondent Mothers' tokens was chosen.
+
+<br>
+
+#### Table
+
+Grammatical categories (Noun, Verb, Pronoun, Adjective, Adverb) in Mothers.
+
+```{r echo=FALSE}
+mot_uni_cat_table %>% kable()
+```
+
+<br>
+
+#### Table
+
+Grammatical categories (Noun, Verb, Pronoun, Adjective, Adverb) in Children.
+
+```{r echo=FALSE}
+chi_uni_cat_table %>% kable()
+```
+
+<br>
+
+#### Table
+
+Grammatical categories (Noun, Verb, Pronoun, Adjective, Adverb) in Model.
+
+```{r echo=FALSE}
+mod_uni_cat_table %>% kable()
+```
+
+<br>
+
+```{r gram_cat, echo = FALSE, results='asis', fig.width=16, fig.height=9}
+gram_cat_main_plot <- function(df, title) {
+  ggplot(df, aes(x=section, y=noun_perc_cum, fill=baby, shape="Noun")) + 
+  geom_point(size=4, alpha=0.2) +
+  scale_x_continuous(breaks=c(1, seq(5,20, 5))) +
+  labs(x = " ", y = " ") +
+  ggtitle(title) +
+  theme(plot.title = element_text(hjust = 0.5, size = 25)) +
+  geom_point(aes(x=section, y=verb_perc_cum, fill=baby, shape="Verb"), size=4,alpha=0.2) + 
+  geom_point(aes(x=section, y=adj_perc_cum, fill=baby, shape="Adjective"), size=4,alpha=0.2) + 
+  geom_point(aes(x=section, y=adv_perc_cum, fill=baby, shape="Adverb"), size=4,alpha=0.2) +
+  geom_point(aes(x=section, y=pron_perc_cum, fill=baby, shape="Pronoun"), size=4,alpha=0.2) + 
+  scale_shape_manual("", values=c(`Noun`= 0, `Verb`= 3, `Adjective` = 2, `Adverb`=1, `Pronoun` = 8),
+                     breaks=c("Noun", "Verb","Adjective", "Adverb", "Pronoun"))+
+  scale_y_continuous(limits=c(0, 100), breaks=seq(0, 100, by = 25))+
+  guides(fill=FALSE)+
+  geom_smooth(aes(x=section, y=noun_perc_cum,linetype="Noun"), fill=NA, colour="black", method="lm", size=0.8)+
+  geom_smooth(aes(x=section, y=verb_perc_cum,linetype="Verb"), fill=NA, colour="black", method="lm", size=0.8)+
+  geom_smooth(aes(x=section, y=adj_perc_cum,linetype="Adjective"), fill=NA, colour="black", method="lm", size=0.8)+
+  geom_smooth(aes(x=section, y=adv_perc_cum,linetype="Adverb"), fill=NA, colour="black", method="lm", size=0.8)+
+  geom_smooth(aes(x=section, y=pron_perc_cum,linetype="Pronoun"), fill=NA, colour="black", method="lm", size=0.8)+
+  theme(axis.text=element_text(size=18),         legend.text = element_text(size = 20),         legend.title = element_text(size = 20),         legend.key.size = unit(1, "cm"))+     scale_colour_grey(start = 0, end = .9)+
+  scale_linetype_manual("", values=c(`Adverb` = "dotdash", `Noun` = "longdash",`Verb` = "solid", `Adjective`= "dotted", `Pronoun` = "F1"), breaks=c("Noun", "Verb","Adjective", "Adverb", "Pronoun"))
+}
+
+plot1 <- gram_cat_main_plot(mot_uni_cat, "Mothers")
+plot2 <- gram_cat_main_plot(chi_uni_cat, "Children")
+plot3 <- gram_cat_main_plot(mod_uni_cat, "Model")
+
+grid_arrange_shared_legend(plot1, plot2, plot3, position = "right", 
+                           x_title = "Stage", y_title = "Novel words (%)",
+                           x_size = 25, y_size = 25,
+                           widths1 = 2, widths2 = 0.5, hjust1 = 1)
+
+```
+
+**Figure .** Cumulative percentage of words in Grammatical categories (Nouns, Verbs, Pronouns, Adverbs, Adjectives) produced over time by Mothers, Children and Model.
+
+
+<br>
+
+```{r gram_cat2, echo = FALSE, results='asis', fig.width=16, fig.height=9}
+gram_cat_2_plot <- function(df, title) {
+  ggplot(df, aes(x=section, y=noun_perc_cum, fill=baby, shape="Noun")) + 
+  geom_point(size=4, alpha=0.2) +
+  scale_x_continuous(breaks=c(1, seq(5,20, 5))) +
+  labs(x = " ", y = " ") +
+  ggtitle(title) +
+  theme(plot.title = element_text(hjust = 0.5, size = 25)) +
+  geom_point(aes(x=section, y=verb_perc_cum, fill=baby, shape="Verb"), size=4,alpha=0.2) + 
+  scale_shape_manual("", values=c(`Noun`= 0, `Verb`= 3),
+                     breaks=c("Noun", "Verb"))+
+  scale_y_continuous(limits=c(0, 100), breaks=seq(0, 100, by = 25))+
+  guides(fill=FALSE)+
+  geom_smooth(aes(x=section, y=noun_perc_cum,linetype="Noun"), fill=NA, colour="black", method="lm", size=0.8)+
+  geom_smooth(aes(x=section, y=verb_perc_cum,linetype="Verb"), fill=NA, colour="black", method="lm", size=0.8)+
+  theme(axis.text=element_text(size=18),         legend.text = element_text(size = 20),         legend.title = element_text(size = 20),         legend.key.size = unit(1, "cm"))+     scale_colour_grey(start = 0, end = .9)+
+  scale_linetype_manual("", values=c(`Noun` = "longdash",`Verb` = "solid"), breaks=c("Noun", "Verb"))
+  }
+
+plot1 <- gram_cat_2_plot(mot_uni_cat, "Mothers")
+plot2 <- gram_cat_2_plot(chi_uni_cat, "Children")
+plot3 <- gram_cat_2_plot(mod_uni_cat, "Model")
+
+grid_arrange_shared_legend(plot1, plot2, plot3, position = "right", 
+                           x_title = "Stage", y_title = "Novel words (%)",
+                           x_size = 25, y_size = 25,
+                           widths1 = 2, widths2 = 0.5, hjust1 = 1)
+
+```
+
+**Figure .** Cumulative percentage of words in Grammatical categories (Nouns and Verbs) produced over time by Mothers, Children and Model.
+
+<br>
+
+## General Frequency
+
+IPhOD General Frequency measure based on [SUBTLEXus](https://www.ugent.be/pp/experimentele-psychologie/en/research/documents/subtlexus) (Brysbaert & New, 2009). 
+Words that are not present in IPhOD have no frequency value and therefore were excluded.
+
+<br>
+
+#### Quantiles table
+
+```{r echo = FALSE, message=FALSE, warning=FALSE}
+freq_qus %>%
+  as.matrix() %>%
+  t() %>%
+  kable()
+```
+
+<br>
+
+```{r freq_main, echo = FALSE, results='asis', fig.width=16, fig.height=9}
+plot_freq <- function(df, main_title, tertile = "IPhOD Tertile") {
+  ggplot(df, aes(x=section, y=freq_qu1_perc, fill=baby, shape="T1")) + 
+  geom_point(size=4, alpha=0.2) +
+  scale_x_continuous(breaks=c(1, seq(5,20, 5))) +
+  labs(x = " ", y = " ") +
+  ggtitle(main_title) +
+  theme(plot.title = element_text(hjust = 0.5, size = 25)) +
+  geom_point(aes(x=section, y=freq_qu2_perc, fill=baby, shape="T2"),size=4, alpha=0.2) + 
+  geom_point(aes(x=section, y=freq_qu3_perc, fill=baby, shape="T3"), size=4,alpha=0.2) + 
+  scale_shape_manual(tertile, values=c(`T1`= 0, `T2`= 3, `T3` = 2),
+                     breaks=c("T3", "T2","T1")) +
+  scale_y_continuous(limits=c(0, 100), breaks=seq(0, 100, by = 10)) +
+  guides(fill=FALSE)+
+  geom_smooth(aes(x=section, y=freq_qu1_perc,linetype="T1"), 
+              fill=NA, colour="black", method="lm", size=0.8) +
+  geom_smooth(aes(x=section, y=freq_qu2_perc,linetype="T2"), 
+              fill=NA, colour="black", method="lm", size=0.8) +
+  geom_smooth(aes(x=section, y=freq_qu3_perc,linetype="T3"), 
+              fill=NA, colour="black", method="lm", size=0.8) +
+  theme(axis.text=element_text(size=18),         
+        legend.text = element_text(size = 20),         
+        legend.title = element_text(size = 20),         
+        legend.key.size = unit(1, "cm")) +     
+    scale_colour_grey(start = 0, end = .9) +
+  scale_linetype_manual(tertile, 
+                        values=c(`T1` = "longdash",
+                                 `T2` = "solid", `T3`= "dotted"),
+                        breaks=c("T3", "T2","T1"))
+}
+
+plot1 <- plot_freq(chi_uni_on_freq, "Children") 
+plot2 <- plot_freq(mod_on_freq, "Model") 
+plot3 <- plot_freq(mot_uni_on_freq, "Mothers") 
+
+grid_arrange_shared_legend(plot3, plot1, plot2, position = "right", 
+                           x_title = "Stage", y_title = "Novel words (%)",
+                           x_size = 25, y_size = 25,
+                           widths1 = 2, widths2 = 0.5, hjust1 = 1)
+```
+
+**Figure.** Breakdown of General frequency by tertile
+
+<br>
+
+### General Frequency at each phonemic word length
+
+<br>
+
+```{r freq_length1, echo = FALSE, results='asis', fig.width=14, fig.height=6}
+table_prop <- function(list_dfs, df_label) {
+  list_dfs[[df_label]] %>%     
+    summarise(sum(freq_qu1), sum(freq_qu2), sum(freq_qu3)) %>%
+    {. / sum(.) * 100} %>%
+    unlist()
+}
+
+table <- tibble(`Phonemic length` = c(rep(2,3), rep(3,3), 
+                                      rep(4,3), rep(5,3), 
+                                      rep(6,3)) %>%
+                  as.factor(),
+                `IPhOD tertile` = rep(c("T1","T2","T3"),5) %>%
+                  as.factor(),
+                `Novel words (%)`= c(table_prop(freq_lengths, "chi_uni_len2"),
+                                     table_prop(freq_lengths, "chi_uni_len3"), 
+                                     table_prop(freq_lengths, "chi_uni_len4"),
+                                     table_prop(freq_lengths, "chi_uni_len5"), 
+                                     table_prop(freq_lengths, "chi_uni_len6")))
+
+freq_at_length_plot <- function(df, df_label) {
+  ggplot(df, aes(`Phonemic length`, `Novel words (%)`)) + 
+  geom_bar(aes(fill = `IPhOD tertile`), stat = "identity", position = "dodge")+
+  scale_y_continuous(limits=c(0, 100), breaks=seq(0, 100, by = 10))+
+  scale_fill_grey()+
+  theme(axis.text=element_text(size=20),
+        axis.title=element_text(size=20),
+        legend.text = element_text(size=20),
+        legend.title = element_text(size = 20),
+        legend.key.size = unit(1,"cm"))+
+  ggtitle(df_label) +
+  theme(plot.title = element_text(hjust = 0.5, size = 25))
+}
+
+freq_at_length_plot(table, "Children")
+```
+
+**Figure .** CHILD breakdown with tertiles computed for 2-6 phonemes across all mother and child words, using the same tertiles to breakdown each length
+
+<br>
+
+```{r freq_length2, echo = FALSE, results='asis', fig.width=14, fig.height=6}
+table <- tibble(`Phonemic length` = c(rep(2,3), rep(3,3), 
+                                      rep(4,3), rep(5,3), 
+                                      rep(6,3)) %>%
+                  as.factor(),
+                `IPhOD tertile` = rep(c("T1","T2","T3"),5) %>%
+                  as.factor(),
+                `Novel words (%)`= c(table_prop(freq_lengths, "mod_len2"),
+                                     table_prop(freq_lengths, "mod_len3"), 
+                                     table_prop(freq_lengths, "mod_len4"),
+                                     table_prop(freq_lengths, "mod_len5"), 
+                                     table_prop(freq_lengths, "mod_len6")))
+
+freq_at_length_plot(table, "Model")
+```
+
+**Figure .** MODEL breakdown with tertiles computed for 2-6 phonemes across all mother and child words, using the same tertiles to breakdown each length
+
+<br>
+
+```{r freq_length3, echo = FALSE, results='asis', fig.width=14, fig.height=6}
+table <- tibble(`Phonemic length` = c(rep(2,3), rep(3,3), 
+                                      rep(4,3), rep(5,3), 
+                                      rep(6,3)) %>%
+                  as.factor(),
+                `IPhOD tertile` = rep(c("T1","T2","T3"),5) %>%
+                  as.factor(),
+                `Novel words (%)`= c(table_prop(freq_lengths, "chi_uni_len2b"),
+                                     table_prop(freq_lengths, "chi_uni_len3b"), 
+                                     table_prop(freq_lengths, "chi_uni_len4b"),
+                                     table_prop(freq_lengths, "chi_uni_len5b"), 
+                                     table_prop(freq_lengths, "chi_uni_len6b")))
+
+freq_at_length_plot(table, "Children")
+```
+
+**Figure .** CHILD breakdown with tertiles computed for 2-6 phonemes across all mother and child words, this time computing tertiles individually for each phonemic length
+
+<br>
+
+```{r freq_length4, echo = FALSE, results='asis', fig.width=14, fig.height=6}
+table <- tibble(`Phonemic length` = c(rep(2,3), rep(3,3), 
+                                      rep(4,3), rep(5,3), 
+                                      rep(6,3)) %>%
+                  as.factor(),
+                `IPhOD tertile` = rep(c("T1","T2","T3"),5) %>%
+                  as.factor(),
+                `Novel words (%)`= c(table_prop(freq_lengths, "mod_len2b"),
+                                     table_prop(freq_lengths, "mod_len3b"), 
+                                     table_prop(freq_lengths, "mod_len4b"),
+                                     table_prop(freq_lengths, "mod_len5b"), 
+                                     table_prop(freq_lengths, "mod_len6b")))
+
+freq_at_length_plot(table, "Model")
+```
+
+**Figure .** MODEL breakdown with tertiles computed for 2-6 phonemes across all mother and child words, this time computing tertiles individually for each phonemic length
+
+<br> 
+
+## Maternal Frequency
+
+Frequency based on Mothers' corpus. Children's words that are not present in the maternal speech have no frequency value and therefore were excluded. Therefore, words' frequency always starts from 1. This could be seen in the graphs below, where the first quartile (word frequency < 1) contains 0% of words.
+
+<br>
+
+#### Quantiles table
+
+```{r echo = FALSE, message=FALSE, warning=FALSE}
+  freq_mot_qus %>%
+  as.matrix() %>%
+  t() %>%
+  kable()
+```
+
+<br>
+
+```{r freq_mot_main, echo = FALSE, results='asis', fig.width=16, fig.height=9}
+plot1 <- plot_freq(chi_uni_on_mot_freq, "Children", tertile = "Mot tertile") 
+plot2 <- plot_freq(mod_on_mot_freq, "Model", tertile = "Mot tertile") 
+plot3 <- plot_freq(mot_uni_on_mot_freq, "Mothers", tertile = "Mot tertile") 
+
+grid_arrange_shared_legend(plot3, plot1, plot2, position = "right", 
+                           x_title = "Stage", y_title = "Novel words (%)",
+                           x_size = 25, y_size = 25,
+                           widths1 = 2, widths2 = 0.5, hjust1 = 1)
+```
+
+**Figure.** Breakdown of Maternal frequency by quartile
+
+<br>
+
+### Maternal Frequency at each phonemic word length
+
+<br>
+
+```{r freq_mot_length1, echo = FALSE, results='asis', fig.width=14, fig.height=6}
+table <- tibble(`Phonemic length` = c(rep(2,3), rep(3,3), 
+                                      rep(4,3), rep(5,3), 
+                                      rep(6,3)) %>%
+                  as.factor(),
+                `Mot tertile` = rep(c("T1","T2","T3"),5) %>%
+                  as.factor(),
+                `Novel words (%)`= c(table_prop(freq_mot_lengths, "chi_uni_len2"),
+                                     table_prop(freq_mot_lengths, "chi_uni_len3"), 
+                                     table_prop(freq_mot_lengths, "chi_uni_len4"),
+                                     table_prop(freq_mot_lengths, "chi_uni_len5"), 
+                                     table_prop(freq_mot_lengths, "chi_uni_len6")))
+
+freq_at_length_mot_plot <- function(df, df_label) {
+  ggplot(df, aes(`Phonemic length`, `Novel words (%)`)) + 
+  geom_bar(aes(fill = `Mot tertile`), stat = "identity", position = "dodge")+
+  scale_y_continuous(limits=c(0, 100), breaks=seq(0, 100, by = 10))+
+  scale_fill_grey()+
+  theme(axis.text=element_text(size=20),
+        axis.title=element_text(size=20),
+        legend.text = element_text(size=20),
+        legend.title = element_text(size = 20),
+        legend.key.size = unit(1,"cm"))+
+  ggtitle(df_label) +
+  theme(plot.title = element_text(hjust = 0.5, size = 25))
+}
+
+freq_at_length_mot_plot(table, "Children")
+```
+
+**Figure .** CHILD breakdown with tertiles computed for 2-6 phonemes across all mother and child words, using the same tertiles to breakdown each length
+
+<br>
+
+```{r freq_mot_length2, echo = FALSE, results='asis', fig.width=14, fig.height=6}
+table <- tibble(`Phonemic length` = c(rep(2,3), rep(3,3), 
+                                      rep(4,3), rep(5,3), 
+                                      rep(6,3)) %>%
+                  as.factor(),
+                `Mot tertile` = rep(c("T1","T2","T3"),5) %>%
+                  as.factor(),
+                `Novel words (%)`= c(table_prop(freq_mot_lengths, "mod_len2"),
+                                     table_prop(freq_mot_lengths, "mod_len3"), 
+                                     table_prop(freq_mot_lengths, "mod_len4"),
+                                     table_prop(freq_mot_lengths, "mod_len5"), 
+                                     table_prop(freq_mot_lengths, "mod_len6")))
+
+freq_at_length_mot_plot(table, "Model")
+```
+
+**Figure .** MODEL breakdown with tertiles computed for 2-6 phonemes across all mother and child words, using the same tertiles to breakdown each length
+
+<br>
+
+```{r freq_mot_length3, echo = FALSE, results='asis', fig.width=14, fig.height=6}
+table <- tibble(`Phonemic length` = c(rep(2,3), rep(3,3), 
+                                      rep(4,3), rep(5,3), 
+                                      rep(6,3)) %>%
+                  as.factor(),
+                `Mot tertile` = rep(c("T1","T2","T3"),5) %>%
+                  as.factor(),
+                `Novel words (%)`= c(table_prop(freq_mot_lengths, "chi_uni_len2b"),
+                                     table_prop(freq_mot_lengths, "chi_uni_len3b"), 
+                                     table_prop(freq_mot_lengths, "chi_uni_len4b"),
+                                     table_prop(freq_mot_lengths, "chi_uni_len5b"), 
+                                     table_prop(freq_mot_lengths, "chi_uni_len6b")))
+
+freq_at_length_mot_plot(table, "Children")
+```
+
+**Figure .** CHILD breakdown with tertiles computed for 2-6 phonemes across all mother and child words, this time computing tertiles individually for each phonemic length
+
+<br>
+
+```{r freq_mot_length4, echo = FALSE, results='asis', fig.width=14, fig.height=6}
+table <- tibble(`Phonemic length` = c(rep(2,3), rep(3,3), 
+                                      rep(4,3), rep(5,3), 
+                                      rep(6,3)) %>%
+                  as.factor(),
+                `Mot tertile` = rep(c("T1","T2","T3"),5) %>%
+                  as.factor(),
+                `Novel words (%)`= c(table_prop(freq_mot_lengths, "mod_len2b"),
+                                     table_prop(freq_mot_lengths, "mod_len3b"), 
+                                     table_prop(freq_mot_lengths, "mod_len4b"),
+                                     table_prop(freq_mot_lengths, "mod_len5b"), 
+                                     table_prop(freq_mot_lengths, "mod_len6b")))
+
+freq_at_length_mot_plot(table, "Model")
+```
+
+**Figure .** MODEL breakdown with tertiles computed for 2-6 phonemes across all mother and child words, this time computing tertiles individually for each phonemic length
+
