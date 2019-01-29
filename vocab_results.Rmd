@@ -63,13 +63,13 @@ freq_len_pp_fun <- function(df, pp_qu, le, general, freq_df, qus) {
   
   if (pp_qu == 1) {
     df_output %<>%
-      filter(ph_pr < pp_qu_subtlex_us[2])  # PP qu
+      filter(ph_pr < pp_qu_subtlex_us_fun26(mot_uni_on_subtlex_us$phon, chi_uni_on_subtlex_us$phon)[2])  # PP qu
   } else if (pp_qu == 2) {
     df_output %<>%
-      filter(ph_pr >= pp_qu_subtlex_us[2] & ph_pr < pp_qu_subtlex_us[3]) # PP qu
+      filter(ph_pr >= pp_qu_subtlex_us_fun26(mot_uni_on_subtlex_us$phon, chi_uni_on_subtlex_us$phon)[2] & ph_pr < pp_qu_subtlex_us_fun26(mot_uni_on_subtlex_us$phon, chi_uni_on_subtlex_us$phon)[3]) # PP qu
   } else {
     df_output %<>%
-      filter(ph_pr >= pp_qu_subtlex_us[3]) # PP qu
+      filter(ph_pr >= pp_qu_subtlex_us_fun26(mot_uni_on_subtlex_us$phon, chi_uni_on_subtlex_us$phon)[3]) # PP qu
   }
     df_output %<>%
       mutate(len = str_split(phon, "_") %>%
@@ -84,7 +84,7 @@ freq_len_pp_fun <- function(df, pp_qu, le, general, freq_df, qus) {
                  str_replace_all("UU", "AH"))
     }
     
-    df_output %>%
+    df_output %<>%
       left_join(freq_df, "UnTrn") %>%
       mutate(freq_qu = ifelse(SFreq < qus[2], 1,
                               ifelse(SFreq >= qus[2] & SFreq < qus[3], 2,
@@ -97,6 +97,18 @@ freq_len_pp_fun <- function(df, pp_qu, le, general, freq_df, qus) {
       select(-n) %>%
       mutate(len = le,
              pp_t = pp_qu) 
+    
+    if (nrow(df_output) != 3) {
+      levs <- unique(df_output$freq_qu)
+      
+      df_output %>%
+        rbind(tibble(freq_qu = c(1:3)[!1:3 %in% levs],
+                     perc = 0,
+                     len = le,
+                     pp_t = pp_qu))
+    } else {
+      df_output
+    }
 }
 
 freq_len_pp_plot <- function(df, df_label, gen_par, df_freq, freq_qu_par, freq_label) {
@@ -200,13 +212,13 @@ freq_len_nd_fun <- function(df, nd_qu, le, general, freq_df, qus) {
   
   if (nd_qu == 1) {
     df_output %<>%
-      filter(nei < nei_qu[2])  # ND qu
+      filter(nei < nei_qu_fun26(mot_nei_on, chi_nei_on)[2])  # ND qu
   } else if (nd_qu == 2) {
     df_output %<>%
-      filter(nei >= nei_qu[2] & nei < nei_qu[3]) # ND qu
+      filter(nei >= nei_qu_fun26(mot_nei_on, chi_nei_on)[2] & nei < nei_qu_fun26(mot_nei_on, chi_nei_on)[3]) # ND qu
   } else {
     df_output %<>%
-      filter(nei >= nei_qu[3]) # ND qu
+      filter(nei >= nei_qu_fun26(mot_nei_on, chi_nei_on)[3]) # ND qu
   }
   df_output %<>%
     mutate(len = str_split(phon, "_") %>%
@@ -221,7 +233,7 @@ freq_len_nd_fun <- function(df, nd_qu, le, general, freq_df, qus) {
                str_replace_all("UU", "AH"))
   }
   
-  df_output %>%
+  df_output %<>%
     left_join(freq_df, "UnTrn") %>%
     mutate(freq_qu = ifelse(SFreq < qus[2], 1,
                             ifelse(SFreq >= qus[2] & SFreq < qus[3], 2,
@@ -234,6 +246,18 @@ freq_len_nd_fun <- function(df, nd_qu, le, general, freq_df, qus) {
     select(-n) %>%
     mutate(len = le,
            nd_t = nd_qu) 
+  
+    if (nrow(df_output) != 3) {
+      levs <- unique(df_output$freq_qu)
+      
+      df_output %>%
+        rbind(tibble(freq_qu = c(1:3)[!1:3 %in% levs],
+                     perc = 0,
+                     len = le,
+                     nd_t = nd_qu))
+    } else {
+      df_output
+    }
 }
 
 freq_len_nd_plot <- function(df, df_label, gen_par, df_freq, freq_qu_par, freq_label) {
@@ -326,10 +350,315 @@ freq_len_nd_plot <- function(df, df_label, gen_par, df_freq, freq_qu_par, freq_l
 
 }
 
+
+# pp at each length, for each general/maternal tertile
+pp_len_freq_fun <- function(df, le, df_freq, freq_qs, f_qu, general) {
+  df_output <- df %>%
+    (function(x) {
+      tibble(phon = unlist(x$phon),
+             ph_pr = unlist(x$ph_pr))
+    }) %>%
+    mutate(len = str_split(phon, "_") %>%
+             sapply(length)) %>%
+    filter(len == le) %>% # LEN
+    mutate(UnTrn = phon)
+  
+  if (general == TRUE) {
+    df_output %<>%
+      mutate(UnTrn = UnTrn %>%
+               str_replace_all("_", ".") %>%
+               str_replace_all("UU", "AH"))
+  }
+  
+  df_output %<>%
+    left_join(df_freq, "UnTrn") %>%
+    mutate(freq_qu = ifelse(SFreq < freq_qs[2], 1,
+                            ifelse(SFreq >= freq_qs[2] & SFreq < freq_qs[3], 2,
+                                   ifelse(SFreq >= freq_qs[3], 3, NA))))
+  
+  if (f_qu == 1) {
+    df_output %<>%
+      filter(freq_qu == 1)  # freq qu
+  } else if (f_qu == 2) {
+    df_output %<>%
+      filter(freq_qu == 2)  # freq qu
+  } else {
+    df_output %<>%
+      filter(freq_qu == 3)  # freq qu
+  }
+  
+  
+  df_output %<>%
+    mutate(pp_qu = ifelse(ph_pr < pp_qu_subtlex_us_fun26(mot_uni_on_subtlex_us$phon, chi_uni_on_subtlex_us$phon)[2], 1,
+                          ifelse(ph_pr >= pp_qu_subtlex_us_fun26(mot_uni_on_subtlex_us$phon, chi_uni_on_subtlex_us$phon)[2] & ph_pr < pp_qu_subtlex_us_fun26(mot_uni_on_subtlex_us$phon, chi_uni_on_subtlex_us$phon)[3], 2,
+                                 ifelse(ph_pr >= pp_qu_subtlex_us_fun26(mot_uni_on_subtlex_us$phon, chi_uni_on_subtlex_us$phon)[3], 3, NA)))) %>%
+    na.omit() %>%
+    group_by(pp_qu) %>%
+    summarise(n = n()) %>%
+    ungroup() %>%
+    mutate(len = le,
+           freq_t = f_qu) 
+  
+  if (nrow(df_output) != 3) {
+    levs <- unique(df_output$pp_qu)
+    
+    df_output %>%
+      rbind(tibble(pp_qu = c(1:3)[!1:3 %in% levs],
+                   n = 0,
+                   len = le,
+                   freq_t = f_qu))
+  } else {
+    df_output
+  }
+  
+}
+
+pp_len_freq_plot <- function(df_plot, freq_df, f_qs, gnrl, df_label, mot_label) {
+  pp_len_freq_fun(df = df_plot, le = 2, df_freq = freq_df, 
+                  freq_qs = f_qs, f_qu = 1, general = gnrl) %>%
+    rbind(pp_len_freq_fun(df = df_plot, le = 3, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 1, general = gnrl)) %>%
+    rbind(pp_len_freq_fun(df = df_plot, le = 4, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 1, general = gnrl)) %>%
+    rbind(pp_len_freq_fun(df = df_plot, le = 5, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 1, general = gnrl)) %>%
+    rbind(pp_len_freq_fun(df = df_plot, le = 6, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 1, general = gnrl)) %>%
+    rbind(pp_len_freq_fun(df = df_plot, le = 2, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 2, general = gnrl)) %>%
+    rbind(pp_len_freq_fun(df = df_plot, le = 3, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 2, general = gnrl)) %>%
+    rbind(pp_len_freq_fun(df = df_plot, le = 4, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 2, general = gnrl)) %>%
+    rbind(pp_len_freq_fun(df = df_plot, le = 5, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 2, general = gnrl)) %>%
+    rbind(pp_len_freq_fun(df = df_plot, le = 6, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 2, general = gnrl)) %>%
+    rbind(pp_len_freq_fun(df = df_plot, le = 2, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 3, general = gnrl)) %>%
+    rbind(pp_len_freq_fun(df = df_plot, le = 3, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 3, general = gnrl)) %>%
+    rbind(pp_len_freq_fun(df = df_plot, le = 4, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 3, general = gnrl)) %>%
+    rbind(pp_len_freq_fun(df = df_plot, le = 5, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 3, general = gnrl)) %>%
+    rbind(pp_len_freq_fun(df = df_plot, le = 6, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 3, general = gnrl)) %>%
+    mutate(len = as.factor(len),
+           pp_qu = ifelse(pp_qu == 1, "T1",
+                          ifelse(pp_qu == 2, "T2", "T3")) %>%
+             as.factor(),
+           freq_t = ifelse(freq_t == 1, paste(mot_label, "Freq T1", sep = ""),
+                           ifelse(freq_t == 2, paste(mot_label, "Freq T2", sep = ""), 
+                                  paste(mot_label, "Freq T3", sep = ""))) %>%
+             as.factor()) %>%
+    rename(`Phonemic length` = len,
+           `Novel words` = n,
+           PP = pp_qu) %>%
+    (function(x) {
+      ggplot(x, aes(`Phonemic length`, `Novel words`)) + 
+        geom_bar(aes(fill = `PP`), stat = "identity", position = "dodge")+
+        scale_fill_grey()+
+        theme(axis.text=element_text(size=20),
+              axis.title=element_text(size=20),
+              legend.text = element_text(size=20),
+              legend.title = element_text(size = 20),
+              legend.key.size = unit(1,"cm"),
+              strip.text = element_text(size=15)) +
+        ggtitle(df_label) +
+        theme(plot.title = element_text(hjust = 0.5, size = 25)) +
+        facet_grid(rows = vars(freq_t))
+    })
+}
+
+
+# nd at each length, for each general/maternal tertile
+nd_len_freq_fun <- function(df, le, df_freq, freq_qs, f_qu, general) {
+  df_output <- df %>%
+    (function(x) {
+      tibble(phon = unlist(x$phon),
+             nei = unlist(x$nei))
+    }) %>%
+    mutate(len = str_split(phon, "_") %>%
+             sapply(length)) %>%
+    filter(len == le) %>% # LEN
+    mutate(UnTrn = phon)
+  
+  if (general == TRUE) {
+    df_output %<>%
+      mutate(UnTrn = UnTrn %>%
+               str_replace_all("_", ".") %>%
+               str_replace_all("UU", "AH"))
+  }
+  
+  df_output %<>%
+    left_join(df_freq, "UnTrn") %>%
+    mutate(freq_qu = ifelse(SFreq < freq_qs[2], 1,
+                            ifelse(SFreq >= freq_qs[2] & SFreq < freq_qs[3], 2,
+                                   ifelse(SFreq >= freq_qs[3], 3, NA))))
+  
+  if (f_qu == 1) {
+    df_output %<>%
+      filter(freq_qu == 1)  # freq qu
+  } else if (f_qu == 2) {
+    df_output %<>%
+      filter(freq_qu == 2)  # freq qu
+  } else {
+    df_output %<>%
+      filter(freq_qu == 3)  # freq qu
+  }
+  
+  
+  df_output %<>%
+    mutate(nd_qu = ifelse(nei < nei_qu_fun26(mot_nei_on, chi_nei_on)[2], 1,
+                          ifelse(nei >= nei_qu_fun26(mot_nei_on, chi_nei_on)[2] & nei < nei_qu_fun26(mot_nei_on, chi_nei_on)[3], 2,
+                                 ifelse(nei >= nei_qu_fun26(mot_nei_on, chi_nei_on)[3], 3, NA)))) %>%
+    na.omit() %>%
+    group_by(nd_qu) %>%
+    summarise(n = n()) %>%
+    ungroup() %>%
+    mutate(len = le,
+           freq_t = f_qu) 
+  
+  if (nrow(df_output) != 3) {
+    levs <- unique(df_output$nd_qu)
+    
+    df_output %>%
+      rbind(tibble(nd_qu = c(1:3)[!1:3 %in% levs],
+                   n = 0,
+                   len = le,
+                   freq_t = f_qu))
+  } else {
+    df_output
+  }
+  
+}
+
+nd_len_freq_plot <- function(df_plot, freq_df, f_qs, gnrl, df_label, mot_label) {
+  nd_len_freq_fun(df = df_plot, le = 2, df_freq = freq_df, 
+                  freq_qs = f_qs, f_qu = 1, general = gnrl) %>%
+    rbind(nd_len_freq_fun(df = df_plot, le = 3, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 1, general = gnrl)) %>%
+    rbind(nd_len_freq_fun(df = df_plot, le = 4, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 1, general = gnrl)) %>%
+    rbind(nd_len_freq_fun(df = df_plot, le = 5, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 1, general = gnrl)) %>%
+    rbind(nd_len_freq_fun(df = df_plot, le = 6, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 1, general = gnrl)) %>%
+    rbind(nd_len_freq_fun(df = df_plot, le = 2, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 2, general = gnrl)) %>%
+    rbind(nd_len_freq_fun(df = df_plot, le = 3, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 2, general = gnrl)) %>%
+    rbind(nd_len_freq_fun(df = df_plot, le = 4, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 2, general = gnrl)) %>%
+    rbind(nd_len_freq_fun(df = df_plot, le = 5, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 2, general = gnrl)) %>%
+    rbind(nd_len_freq_fun(df = df_plot, le = 6, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 2, general = gnrl)) %>%
+    rbind(nd_len_freq_fun(df = df_plot, le = 2, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 3, general = gnrl)) %>%
+    rbind(nd_len_freq_fun(df = df_plot, le = 3, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 3, general = gnrl)) %>%
+    rbind(nd_len_freq_fun(df = df_plot, le = 4, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 3, general = gnrl)) %>%
+    rbind(nd_len_freq_fun(df = df_plot, le = 5, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 3, general = gnrl)) %>%
+    rbind(nd_len_freq_fun(df = df_plot, le = 6, df_freq = freq_df, 
+                          freq_qs = f_qs, f_qu = 3, general = gnrl)) %>%
+    mutate(len = as.factor(len),
+           nd_qu = ifelse(nd_qu == 1, "T1",
+                          ifelse(nd_qu == 2, "T2", "T3")) %>%
+             as.factor(),
+           freq_t = ifelse(freq_t == 1, paste(mot_label, "Freq T1", sep = ""),
+                           ifelse(freq_t == 2, paste(mot_label, "Freq T2", sep = ""), 
+                                  paste(mot_label, "Freq T3", sep = ""))) %>%
+             as.factor()) %>%
+    rename(`Phonemic length` = len,
+           `Novel words` = n,
+           ND = nd_qu) %>%
+    (function(x) {
+      ggplot(x, aes(`Phonemic length`, `Novel words`)) + 
+        geom_bar(aes(fill = `ND`), stat = "identity", position = "dodge")+
+        scale_fill_grey()+
+        theme(axis.text=element_text(size=20),
+              axis.title=element_text(size=20),
+              legend.text = element_text(size=20),
+              legend.title = element_text(size = 20),
+              legend.key.size = unit(1,"cm"),
+              strip.text = element_text(size=15)) +
+        ggtitle(df_label) +
+        theme(plot.title = element_text(hjust = 0.5, size = 25)) +
+        facet_grid(rows = vars(freq_t))
+    })
+}
+
+
+# frequency tertiles for lenghts 2 to 6
+freq_qu_fun26 <- function(df_var1, df_var2, general) {
+  tibble(phon = c(df_var1 %>% 
+                    unlist(), 
+                  df_var2 %>% 
+                    unlist())) %>%
+    mutate(len = str_split(phon, "_") %>%
+             sapply(length)) %>%
+    filter(len >= 2 & len <= 6) %>%
+    (function(x) {
+      if (general == TRUE) {
+        iphod_freq %>%
+          filter(UnTrn %in% (x$phon %>%
+                               str_replace_all("_", ".") %>%
+                               str_replace_all("UU", "AH"))) %>%
+          .$SFreq %>%
+          quantile(probs = c(0, 1/3, 2/3, 1), na.rm = TRUE)
+      } else {
+        mot_freq %>%
+          filter(UnTrn %in% x$phon) %>%
+          .$SFreq %>%
+          quantile(probs = c(0, 1/3, 2/3, 1), na.rm = TRUE)
+      }
+    })
+}
+
+# ND tertiles for 2-6 lengths
+nei_qu_fun26 <- function(df_var1, df_var2) {
+  tibble(phon = c(df_var1 %>% 
+                    unlist(), 
+                  df_var2 %>% 
+                    unlist())) %>%
+    mutate(len = str_split(phon, "_") %>%
+             sapply(length)) %>%
+    filter(len >= 2 & len <= 6) %>%
+    (function(x) {
+        online %>%
+          filter(phon %in% x$phon) %>%
+          .$nei %>%
+          quantile(probs = c(0, 1/3, 2/3, 1), na.rm = TRUE)
+
+    })
+}
+
+# PP tertiles for 2-6 lengths
+pp_qu_subtlex_us_fun26 <- function(df_var1, df_var2) {
+  tibble(phon = c(df_var1 %>% 
+                    unlist(), 
+                  df_var2 %>% 
+                    unlist())) %>%
+    mutate(len = str_split(phon, "_") %>%
+             sapply(length)) %>%
+    filter(len >= 2 & len <= 6) %>%
+    (function(x) {
+      subtlex_us_pp %>%
+        filter(Input %in% (x$phon %>%
+                             str_replace_all("_", ".") %>%
+                             str_replace_all("UU", "AH"))) %>%
+        .$unsLBPAV %>%
+        quantile(probs = c(0, 1/3, 2/3, 1), na.rm = TRUE)
+  })
+} 
 ```
 <br>
 
-## Basic results
+## 1. Basic results
 
 <br>
 
@@ -502,7 +831,7 @@ kable(table)
 <br>
 
 
-## Word length
+## 2. Word length
 
 <br>
 
@@ -592,7 +921,7 @@ grid_arrange_shared_legend(plot3, plot1, plot2, position = "right",
 
 <br>
 
-## Phonotactic probability
+## 3. Phonotactic Probability
 
 <br>
 
@@ -652,7 +981,7 @@ grid_arrange_shared_legend(plot3, plot1, plot2, position = "right",
 
 <br>
 
-### Phonotactic probability at each phonemic word length
+### 3.1. PP at each phonemic word length
 
 <br>
 
@@ -757,7 +1086,7 @@ pp_at_length_plot(table, "Model")
 
 <br> 
 
-### Phonotactic probability at each general frequency tertile
+### 3.2. PP at each general frequency tertile
 
 <br>
 
@@ -814,7 +1143,7 @@ pp_at_freq_plot(table, "Model")
 
 <br> 
 
-### Phonotactic probability at each maternal frequency tertile
+### 3.3. PP at each maternal frequency tertile
 
 <br>
 
@@ -864,7 +1193,59 @@ pp_at_freq_mot_plot(table, "Model")
 
 <br>
 
-## Neighbourhood density
+### 3.4. PP at each phonemic length (for each general frequency tertile; raw counts)
+
+<br>
+
+```{r pp_len_freq_chi, echo = FALSE, results='asis', fig.width=14, fig.height=9, warning=FALSE, message=FALSE}
+pp_len_freq_plot(chi_uni_on_subtlex_us, iphod_freq, 
+                 freq_qu_fun26(mot_uni_on_freq$phon, 
+                               chi_uni_on_freq$phon, 
+                               general = TRUE), 
+                 TRUE, "Children",
+                 mot_label = "") 
+```
+
+<br>
+
+```{r pp_len_freq_mod, echo = FALSE, results='asis', fig.width=14, fig.height=9, warning=FALSE, message=FALSE}
+pp_len_freq_plot(mod_on_subtlex_us, iphod_freq, 
+                 freq_qu_fun26(mot_uni_on_freq$phon, 
+                               chi_uni_on_freq$phon, 
+                               general = TRUE), 
+                 TRUE, "Model",
+                 mot_label = "") 
+```
+
+<br>
+
+### 3.5. PP at each phonemic length (for each maternal frequency tertile; raw counts)
+
+<br>
+
+```{r pp_len_freq_mot_chi, echo = FALSE, results='asis', fig.width=14, fig.height=9, warning=FALSE, message=FALSE}
+pp_len_freq_plot(chi_uni_on_subtlex_us, mot_freq, 
+                 freq_qu_fun26(mot_uni_on_freq$phon, 
+                               chi_uni_on_freq$phon, 
+                               general = FALSE), 
+                 FALSE, "Children",
+                 mot_label = "Mot ") 
+```
+
+<br>
+
+```{r pp_len_freq_mot_mod, echo = FALSE, results='asis', fig.width=14, fig.height=9, warning=FALSE, message=FALSE}
+pp_len_freq_plot(mod_on_subtlex_us, mot_freq, 
+                 freq_qu_fun26(mot_uni_on_freq$phon, 
+                               chi_uni_on_freq$phon, 
+                               general = FALSE),  
+                 FALSE, "Model",
+                 mot_label = "Mot ") 
+```
+
+<br>
+
+## 4. Neighbourhood Density
 
 <br>
 
@@ -924,7 +1305,7 @@ grid_arrange_shared_legend(plot3, plot1, plot2, position = "right",
 
 <br>
 
-### Neighbourhood density at each phonemic word length
+### 4.1. ND at each phonemic word length
 
 <br>
 
@@ -1059,7 +1440,7 @@ kable(table3)
 
 <br> 
 
-### Neighbourhood Density at each general frequency tertile
+### 4.2. ND at each general frequency tertile
 
 <br>
 
@@ -1114,7 +1495,7 @@ nd_at_freq_plot(table, "Model")
 
 <br> 
 
-### Neighbourhood Density at each maternal frequency tertile
+### 4.3. ND at each maternal frequency tertile
 
 <br>
 
@@ -1162,9 +1543,61 @@ nd_at_freq_mot_plot(table, "Model")
 
 **Figure .** Model Percentage of words in each ND tertile across Maternal Frequency tertiles
 
-<br> 
+<br>
 
-## Grammatical categories
+### 4.4. ND at each phonemic length (for each general frequency tertile; raw counts)
+
+<br>
+
+```{r nd_len_freq_chi, echo = FALSE, results='asis', fig.width=14, fig.height=9, warning=FALSE, message=FALSE}
+nd_len_freq_plot(chi_nei_on, iphod_freq, 
+                 freq_qu_fun26(mot_nei_on$phon, 
+                               chi_nei_on$phon, 
+                               general = TRUE), 
+                 TRUE, "Children",
+                 mot_label = "") 
+```
+
+<br>
+
+```{r nd_len_freq_mod, echo = FALSE, results='asis', fig.width=14, fig.height=9, warning=FALSE, message=FALSE}
+nd_len_freq_plot(mod_nei_on, iphod_freq, 
+                 freq_qu_fun26(mot_nei_on$phon, 
+                               chi_nei_on$phon, 
+                               general = TRUE), 
+                 TRUE, "Model",
+                 mot_label = "") 
+```
+
+<br>
+
+### 4.5. ND at each phonemic length (for each maternal frequency tertile; raw counts)
+
+<br>
+
+```{r nd_len_freq_mot_chi, echo = FALSE, results='asis', fig.width=14, fig.height=9, warning=FALSE, message=FALSE}
+nd_len_freq_plot(chi_nei_on, mot_freq, 
+                 freq_qu_fun26(mot_nei_on$phon, 
+                               chi_nei_on$phon, 
+                               general = FALSE),  
+                 FALSE, "Children",
+                 mot_label = "Mot ") 
+```
+
+<br>
+
+```{r nd_len_freq_mot_mod, echo = FALSE, results='asis', fig.width=14, fig.height=9, warning=FALSE, message=FALSE}
+nd_len_freq_plot(mod_nei_on, mot_freq, 
+                 freq_qu_fun26(mot_nei_on$phon, 
+                               chi_nei_on$phon, 
+                               general = FALSE),  
+                 FALSE, "Model",
+                 mot_label = "Mot ") 
+```
+
+<br>
+
+## 5. Grammatical categories
 
 Plural common nouns and verbs were considered in their root form. As the model words are only available in phonetic trascription, they were transformed in orthographic choosing the most frequent orthographic form for each word in Mothers. To assign the grammatical category, for each type the most frequent grammatical category in its correspondent Mothers' tokens was chosen.
 
@@ -1275,7 +1708,7 @@ grid_arrange_shared_legend(plot1, plot2, plot3, position = "right",
 
 <br>
 
-## General Frequency
+## 6. General Frequency
 
 IPhOD General Frequency measure based on [SUBTLEXus](https://www.ugent.be/pp/experimentele-psychologie/en/research/documents/subtlexus) (Brysbaert & New, 2009). 
 Words that are not present in IPhOD have no frequency value and therefore were excluded.
@@ -1338,7 +1771,7 @@ grid_arrange_shared_legend(plot3, plot1, plot2, position = "right",
 
 <br>
 
-### General Frequency at each phonemic word length
+### 6.1. General Frequency at each phonemic word length
 
 <br>
 
@@ -1443,12 +1876,14 @@ freq_at_length_plot(table, "Model")
 
 <br> 
 
-### General frequency at each phonemic length (for each different PP tertile)
+### 6.2. General frequency at each phonemic length (for each different PP tertile)
 
 ```{r freq_len_pp_chi, echo = FALSE, results='asis', fig.width=14, fig.height=9}
 freq_len_pp_plot(chi_uni_on_subtlex_us, "Children",
                  gen_par = TRUE, df_freq = iphod_freq,
-                 freq_qu_par = freq_qus,
+                 freq_qu_par = freq_qu_fun26(chi_uni_on_subtlex_us$phon,
+                                             mot_uni_on_subtlex_us$phon, 
+                                             general = TRUE),
                  freq_label = "Frequency")
 ```
 
@@ -1457,18 +1892,22 @@ freq_len_pp_plot(chi_uni_on_subtlex_us, "Children",
 ```{r freq_len_pp_mod, echo = FALSE, results='asis', fig.width=14, fig.height=9}
 freq_len_pp_plot(mod_on_subtlex_us, "Model",
                  gen_par = TRUE, df_freq = iphod_freq,
-                 freq_qu_par = freq_qus,
+                 freq_qu_par = freq_qu_fun26(chi_uni_on_subtlex_us$phon,
+                                             mot_uni_on_subtlex_us$phon, 
+                                             general = TRUE),
                  freq_label = "Frequency")
 ```
 
 <br>
 
-### General frequency at each phonemic length (for each different ND tertile)
+### 6.3. General frequency at each phonemic length (for each different ND tertile)
 
 ```{r freq_len_nd_chi, echo = FALSE, results='asis', fig.width=14, fig.height=9}
 freq_len_nd_plot(chi_nei_on, "Children",
                  gen_par = TRUE, df_freq = iphod_freq,
-                 freq_qu_par = freq_qus,
+                 freq_qu_par = freq_qu_fun26(chi_nei_on$phon,
+                                             mot_nei_on$phon, 
+                                             general = TRUE),
                  freq_label = "Frequency")
 ```
 
@@ -1477,13 +1916,15 @@ freq_len_nd_plot(chi_nei_on, "Children",
 ```{r freq_len_nd_mod, echo = FALSE, results='asis', fig.width=14, fig.height=9}
 freq_len_nd_plot(mod_nei_on, "Model",
                  gen_par = TRUE, df_freq = iphod_freq,
-                 freq_qu_par = freq_qus,
+                 freq_qu_par = freq_qu_fun26(chi_nei_on$phon,
+                                             mot_nei_on$phon, 
+                                             general = TRUE),
                  freq_label = "Frequency")
 ```
 
 <br>
 
-## Maternal Frequency
+## 7. Maternal Frequency
 
 Frequency based on Mothers' corpus. Children's words that are not present in the maternal speech have no frequency value and therefore were excluded. Therefore, words' frequency always starts from 1.
 
@@ -1515,7 +1956,7 @@ grid_arrange_shared_legend(plot3, plot1, plot2, position = "right",
 
 <br>
 
-### Maternal Frequency at each phonemic word length
+### 7.1. Maternal Frequency at each phonemic word length
 
 <br>
 
@@ -1613,12 +2054,14 @@ freq_at_length_mot_plot(table, "Model")
 
 <br> 
 
-### Maternal frequency at each phonemic length (for each different PP tertile)
+### 7.2. Maternal frequency at each phonemic length (for each different PP tertile)
 
 ```{r freq_mot_len_pp_chi, echo = FALSE, results='asis', fig.width=14, fig.height=9}
 freq_len_pp_plot(chi_uni_on_subtlex_us, "Children",
                  gen_par = FALSE, df_freq = mot_freq,
-                 freq_qu_par = freq_mot_qus,
+                 freq_qu_par = freq_qu_fun26(chi_uni_on_subtlex_us$phon,
+                                             mot_uni_on_subtlex_us$phon, 
+                                             general = FALSE),
                  freq_label = "Mot Frequency")
 ```
 
@@ -1627,18 +2070,22 @@ freq_len_pp_plot(chi_uni_on_subtlex_us, "Children",
 ```{r freq_mot_len_pp_mod, echo = FALSE, results='asis', fig.width=14, fig.height=9}
 freq_len_pp_plot(mod_on_subtlex_us, "Model",
                  gen_par = FALSE, df_freq = mot_freq,
-                 freq_qu_par = freq_mot_qus,
+                 freq_qu_par = freq_qu_fun26(chi_uni_on_subtlex_us$phon,
+                                             mot_uni_on_subtlex_us$phon, 
+                                             general = FALSE),
                  freq_label = "Mot Frequency")
 ```
 
 <br>
 
-### Maternal frequency at each phonemic length (for each different ND tertile)
+### 7.3. Maternal frequency at each phonemic length (for each different ND tertile)
 
 ```{r freq_mot_len_nd_chi, echo = FALSE, results='asis', fig.width=14, fig.height=9}
 freq_len_nd_plot(chi_nei_on, "Children",
                  gen_par = FALSE, df_freq = mot_freq,
-                 freq_qu_par = freq_mot_qus,
+                 freq_qu_par = freq_qu_fun26(chi_nei_on$phon,
+                                             mot_nei_on$phon, 
+                                             general = FALSE),
                  freq_label = "Mot Frequency")
 ```
 
@@ -1647,7 +2094,9 @@ freq_len_nd_plot(chi_nei_on, "Children",
 ```{r freq_mot_len_nd_mod, echo = FALSE, results='asis', fig.width=14, fig.height=9}
 freq_len_nd_plot(mod_nei_on, "Model",
                  gen_par = FALSE, df_freq = mot_freq,
-                 freq_qu_par = freq_mot_qus,
+                 freq_qu_par = freq_qu_fun26(chi_nei_on$phon,
+                                             mot_nei_on$phon, 
+                                             general = FALSE),
                  freq_label = "Mot Frequency")
 ```
 
