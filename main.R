@@ -5,7 +5,7 @@ rm(lib)
 
 
 #### log PP ####
-# thirds
+# tertiles
 pp_qu_subtlex_us_fun <- function(df1_var, df2_var) {
   subtlex_us_pp %>%
     filter(Input %in% (df1_var %>% 
@@ -558,6 +558,34 @@ nei_freqs[["mod_nei_freq2"]] <- select_freq(mod_nei_on, "freq_q2", freq_nei_qus)
 nei_freqs[["mod_nei_freq3"]] <- select_freq(mod_nei_on, "freq_q3", freq_nei_qus) %>%
   quartiles_nei_sets()
 
+nei_freqs[["chi_nei_freq1b"]] <- select_freq(chi_nei_on, "freq_q1", freq_nei_qus) %>%
+  quartiles_nei_sets(qu = nei_qu_fun(nei_freqs[["chi_nei_freq1"]]$phon, 
+                                      nei_freqs[["mot_nei_freq1"]]$phon))
+nei_freqs[["chi_nei_freq2b"]] <- select_freq(chi_nei_on, "freq_q2", freq_nei_qus) %>%
+  quartiles_nei_sets(qu = nei_qu_fun(nei_freqs[["chi_nei_freq2"]]$phon, 
+                                      nei_freqs[["mot_nei_freq2"]]$phon))
+nei_freqs[["chi_nei_freq3b"]] <- select_freq(chi_nei_on, "freq_q3", freq_nei_qus) %>%
+  quartiles_nei_sets(qu = nei_qu_fun(nei_freqs[["chi_nei_freq3"]]$phon, 
+                                      nei_freqs[["mot_nei_freq3"]]$phon))
+nei_freqs[["mot_nei_freq1b"]] <- select_freq(mot_nei_on, "freq_q1", freq_nei_qus) %>%
+  quartiles_nei_sets(qu = nei_qu_fun(nei_freqs[["chi_nei_freq1"]]$phon, 
+                                      nei_freqs[["mot_nei_freq1"]]$phon))
+nei_freqs[["mot_nei_freq2b"]] <- select_freq(mot_nei_on, "freq_q2", freq_nei_qus) %>%
+  quartiles_nei_sets(qu = nei_qu_fun(nei_freqs[["chi_nei_freq2"]]$phon, 
+                                      nei_freqs[["mot_nei_freq2"]]$phon))
+nei_freqs[["mot_nei_freq3b"]] <- select_freq(mot_nei_on, "freq_q3", freq_nei_qus) %>%
+  quartiles_nei_sets(qu = nei_qu_fun(nei_freqs[["chi_nei_freq3"]]$phon, 
+                                      nei_freqs[["mot_nei_freq3"]]$phon))
+nei_freqs[["mod_nei_freq1b"]] <- select_freq(mod_nei_on, "freq_q1", freq_nei_qus) %>%
+  quartiles_nei_sets(qu = nei_qu_fun(nei_freqs[["chi_nei_freq1"]]$phon, 
+                                      nei_freqs[["mot_nei_freq1"]]$phon))
+nei_freqs[["mod_nei_freq2b"]] <- select_freq(mod_nei_on, "freq_q2", freq_nei_qus) %>%
+  quartiles_nei_sets(qu = nei_qu_fun(nei_freqs[["chi_nei_freq2"]]$phon, 
+                                      nei_freqs[["mot_nei_freq2"]]$phon))
+nei_freqs[["mod_nei_freq3b"]] <- select_freq(mod_nei_on, "freq_q3", freq_nei_qus) %>%
+  quartiles_nei_sets(qu = nei_qu_fun(nei_freqs[["chi_nei_freq3"]]$phon, 
+                                      nei_freqs[["mot_nei_freq3"]]$phon))
+
 #### ND by maternal frequency ####
 freq_nei_mot_qus <- freq_qu_fun(mot_nei_on$phon, chi_nei_on$phon, general = FALSE)
 
@@ -623,6 +651,43 @@ pp_freqs[["mod_pp_freq3"]] <- select_freq(mod_on_subtlex_us, "freq_q3",
                                           freq_pp_qus, var = "ph_pr") %>%
   quartiles_pp_sets()
 
+pp_freqs[["chi_pp_freq1b"]] <- select_freq(chi_uni_on_subtlex_us, "freq_q1",
+                                          freq_pp_qus, var = "ph_pr") %>%
+  quartiles_pp_sets(pp_qu = pp_qu_subtlex_us_fun(pp_freqs[["chi_pp_freq1"]]$phon,
+                                        pp_freqs[["mot_pp_freq1"]]$phon))
+pp_freqs[["chi_pp_freq2b"]] <- select_freq(chi_uni_on_subtlex_us, "freq_q2",
+                                          freq_pp_qus, var = "ph_pr") %>%
+  quartiles_pp_sets(pp_qu = pp_qu_subtlex_us_fun(pp_freqs[["chi_pp_freq2"]]$phon,
+                                        pp_freqs[["mot_pp_freq2"]]$phon))
+pp_freqs[["chi_pp_freq3b"]] <- select_freq(chi_uni_on_subtlex_us, "freq_q3",
+                                          freq_pp_qus, var = "ph_pr") %>%
+  quartiles_pp_sets(pp_qu = pp_qu_subtlex_us_fun(pp_freqs[["chi_pp_freq3"]]$phon,
+                                        pp_freqs[["mot_pp_freq3"]]$phon))
+pp_freqs[["mot_pp_freq1b"]] <- select_freq(mot_uni_on_subtlex_us, "freq_q1",
+                                          freq_pp_qus, var = "ph_pr") %>%
+  quartiles_pp_sets(pp_qu = pp_qu_subtlex_us_fun(pp_freqs[["chi_pp_freq1"]]$phon,
+                                        pp_freqs[["mot_pp_freq1"]]$phon))
+pp_freqs[["mot_pp_freq2b"]] <- select_freq(mot_uni_on_subtlex_us, "freq_q2",
+                                          freq_pp_qus, var = "ph_pr") %>%
+  quartiles_pp_sets(pp_qu = pp_qu_subtlex_us_fun(pp_freqs[["chi_pp_freq2"]]$phon,
+                                        pp_freqs[["mot_pp_freq2"]]$phon))
+pp_freqs[["mot_pp_freq3b"]] <- select_freq(mot_uni_on_subtlex_us, "freq_q3",
+                                          freq_pp_qus, var = "ph_pr") %>%
+  quartiles_pp_sets(pp_qu = pp_qu_subtlex_us_fun(pp_freqs[["chi_pp_freq3"]]$phon,
+                                        pp_freqs[["mot_pp_freq3"]]$phon))
+pp_freqs[["mod_pp_freq1b"]] <- select_freq(mod_on_subtlex_us, "freq_q1",
+                                          freq_pp_qus, var = "ph_pr") %>%
+  quartiles_pp_sets(pp_qu = pp_qu_subtlex_us_fun(pp_freqs[["chi_pp_freq1"]]$phon,
+                                        pp_freqs[["mot_pp_freq1"]]$phon))
+pp_freqs[["mod_pp_freq2b"]] <- select_freq(mod_on_subtlex_us, "freq_q2",
+                                          freq_pp_qus, var = "ph_pr") %>%
+  quartiles_pp_sets(pp_qu = pp_qu_subtlex_us_fun(pp_freqs[["chi_pp_freq2"]]$phon,
+                                        pp_freqs[["mot_pp_freq2"]]$phon))
+pp_freqs[["mod_pp_freq3b"]] <- select_freq(mod_on_subtlex_us, "freq_q3",
+                                          freq_pp_qus, var = "ph_pr") %>%
+  quartiles_pp_sets(pp_qu = pp_qu_subtlex_us_fun(pp_freqs[["chi_pp_freq3"]]$phon,
+                                        pp_freqs[["mot_pp_freq3"]]$phon))
+
 #### LOG PP by maternal frequency ####
 freq_pp_mot_qus <- freq_qu_fun(mot_uni_on_subtlex_us$phon, chi_uni_on_subtlex_us$phon, general = FALSE)
 
@@ -657,3 +722,5 @@ pp_mot_freqs[["mod_pp_freq3"]] <- select_freq(mod_on_subtlex_us, "freq_q3",
 
 # Frequency at each length, for each PP tertile (in Rmd file)
   
+
+    
